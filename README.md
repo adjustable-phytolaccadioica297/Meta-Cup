@@ -160,6 +160,10 @@ Expected: terminal reason `resolved_safely`, score close to `1.0`.
 
 OpenAPI docs: `http://127.0.0.1:8000/docs`
 
+Important for `/reset` in Swagger UI:
+- Replace the default `"scenario_id": "string"` placeholder with a real id (for example `easy_auth_token_expiry`).
+- Use `GET /scenarios` first to list valid ids.
+
 ## Local Setup
 
 Recommended runtime: Python `3.11+`.
@@ -212,6 +216,18 @@ Run:
 
 ```bash
 python3 inference.py
+```
+
+Round 1 recommended run (saves reproducible artifact):
+
+```bash
+mkdir -p artifacts
+export RUNBOOKOPS_BASE_URL="https://<your-space>.hf.space"
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
+export HF_TOKEN="<your_token>"
+export RESULT_PATH="artifacts/inference_live_$(date +%Y%m%d_%H%M%S).json"
+python3 inference.py | tee artifacts/inference_live_stdout.txt
 ```
 
 Output:

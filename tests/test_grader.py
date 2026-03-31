@@ -70,6 +70,14 @@ def test_negated_statement_does_not_match() -> None:
     )
 
 
+def test_matching_works_when_canonical_contains_negation() -> None:
+    assert text_matches(
+        "secret rotated but gateway did not reload new version",
+        "Secret rotated but gateway did not reload new version",
+        ["stale secret version on gateway"],
+    )
+
+
 def test_safe_resolution_requires_enough_evidence() -> None:
     env = RunbookOpsEnvironment()
     env.reset(scenario_id="hard_auth_multi_signal_conflict")

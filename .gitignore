@@ -4,4 +4,6 @@ __pycache__/
 *.egg-info/
 .baseline_results.json
 baseline_results.json
+artifacts/
+task_summary.json
 .DS_Store

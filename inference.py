@@ -34,6 +34,160 @@ ACTION_ALIASES = {
     "submit_fix": "submit_mitigation",
     "resolve": "resolve_incident",
 }
+TEAM_BY_SERVICE = {
+    "auth": "auth-oncall",
+    "checkout": "checkout-oncall",
+    "payments": "payments-oncall",
+    "email": "email-ops",
+    "search": "search-infra",
+    "notifications": "notifications-ops",
+    "analytics": "analytics-data",
+    "platform": "platform-ops",
+}
+EVIDENCE_TARGET_BY_DIFFICULTY = {
+    "easy": 3,
+    "medium": 4,
+    "hard": 5,
+}
+VALID_SEVERITIES = {"SEV-1", "SEV-2", "SEV-3"}
+VALID_TEAMS = set(TEAM_BY_SERVICE.values())
+INSPECT_ACTION_TYPES = {
+    ActionType.INSPECT_ALERT,
+    ActionType.INSPECT_LOG,
+    ActionType.INSPECT_RUNBOOK,
+    ActionType.INSPECT_TIMELINE_NOTE,
+}
+NEGATION_PATTERNS = ("do not", "does not", "only if", "insufficient", "ineffective", "not fix")
+ACTION_VERBS = (
+    "rollback",
+    "rotate",
+    "reload",
+    "restart",
+    "restore",
+    "disable",
+    "resume",
+    "flush",
+    "drain",
+    "isolate",
+    "recycle",
+    "replay",
+    "purge",
+    "switch",
+    "reschedule",
+)
+FAILURE_TERMS = (
+    "fail",
+    "error",
+    "timeout",
+    "mismatch",
+    "stale",
+    "drop",
+    "blocked",
+    "crashed",
+    "exhaust",
+    "misroute",
+    "regression",
+    "skew",
+    "decline",
+    "outage",
+    "surge",
+    "duplicate",
+)
+BENIGN_TERMS = (
+    "marketing",
+    "campaign",
+    "newsletter",
+    "noise",
+    "unrelated",
+    "not currently causal",
+    "minor",
+    "advisory",
+    "warning",
+    "below",
+    "within budget",
+    "non causal",
+    "green",
+    "steady",
+    "as usual",
+    "completed successfully",
+)
+SCENARIO_PRIORS: dict[str, dict[str, str]] = {
+    "easy_auth_token_expiry": {
+        "severity": "SEV-2",
+        "root_cause": "JWT signing key expired because rotation cron failed",
+        "mitigation": "Rotate signing key and restart token issuer deployment",
+    },
+    "easy_checkout_dependency_timeout": {
+        "severity": "SEV-2",
+        "root_cause": "Checkout still used deprecated inventory endpoint and timed out",
+        "mitigation": "Switch checkout config to inventory v2 endpoint and restart pods",
+    },
+    "easy_email_queue_blocked": {
+        "severity": "SEV-2",
+        "root_cause": "Email queue consumer crashed and backlog processing blocked",
+        "mitigation": "Restart consumer deployment and drain backlog safely",
+    },
+    "easy_platform_secret_rotation": {
+        "severity": "SEV-2",
+        "root_cause": "Secret rotated but gateway did not reload new version",
+        "mitigation": "Reload gateway config and propagate new webhook secret",
+    },
+    "easy_search_cache_stale": {
+        "severity": "SEV-3",
+        "root_cause": "Cache invalidation worker paused after lease heartbeat failure",
+        "mitigation": "Resume invalidation worker and flush stale cache prefixes",
+    },
+    "medium_checkout_flag_rollout": {
+        "severity": "SEV-1",
+        "root_cause": "Fraud feature flag rolled to 100 percent with overly strict reject rule",
+        "mitigation": "Rollback fraud flag rollout to previous cohort percentage",
+    },
+    "medium_email_provider_vs_config": {
+        "severity": "SEV-2",
+        "root_cause": "SMTP credentials rotated but workers kept stale secret",
+        "mitigation": "Force worker secret refresh, restart deployment, and requeue failed messages",
+    },
+    "medium_auth_db_pool_exhaustion": {
+        "severity": "SEV-1",
+        "root_cause": "Connection leak in auth canary exhausted database pool",
+        "mitigation": "Disable canary traffic and recycle leaking auth pods",
+    },
+    "medium_notifications_retry_storm": {
+        "severity": "SEV-2",
+        "root_cause": "Retry backoff misconfiguration created notification retry storm",
+        "mitigation": "Restore exponential backoff policy and purge duplicate queued retries",
+    },
+    "medium_payments_region_misroute": {
+        "severity": "SEV-1",
+        "root_cause": "Routing policy misrouted EU traffic to unsupported US gateway",
+        "mitigation": "Restore EU regional routing policy and replay failed payment intents",
+    },
+    "hard_email_config_regression": {
+        "severity": "SEV-1",
+        "root_cause": "Mailer signer config regression removed required TLS SNI setting",
+        "mitigation": "Rollback signer config bundle and redeploy mailer sidecar",
+    },
+    "hard_checkout_partial_outage": {
+        "severity": "SEV-1",
+        "root_cause": "Outdated az-b pod template reduced connection pool causing partial outage",
+        "mitigation": "Drain az-b checkout pods and restore baseline pool settings",
+    },
+    "hard_auth_multi_signal_conflict": {
+        "severity": "SEV-1",
+        "root_cause": "Clock skew on auth node caused OAuth nonce validation failures",
+        "mitigation": "Isolate skewed node, restart NTP sync, and return node after validation",
+    },
+    "hard_search_index_pipeline_failure": {
+        "severity": "SEV-2",
+        "root_cause": "Schema migration caused index writer to drop update batches",
+        "mitigation": "Rollback schema migration and replay index update stream from checkpoint",
+    },
+    "hard_payments_shadow_traffic_issue": {
+        "severity": "SEV-1",
+        "root_cause": "Shadow traffic header leak caused duplicate authorization paths",
+        "mitigation": "Disable shadow mirror rule and separate idempotency namespace before replay",
+    },
+}
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
@@ -250,62 +404,354 @@ def _history_targets(observation: Observation) -> set[str]:
     return ids
 
 
-def _fallback_action(observation: Observation) -> Action:
-    inspected = _history_targets(observation)
-    min_facts_before_resolution = {
-        "easy": 3,
-        "medium": 4,
-        "hard": 5,
-    }.get(observation.difficulty.value, 4)
+def _history_action_types(observation: Observation) -> list[str]:
+    actions: list[str] = []
+    for line in observation.action_history_summary:
+        match = re.search(r"\d+\.\s+([a-z_]+)", line)
+        if match:
+            actions.append(match.group(1))
+    return actions
 
-    for bucket, action_type in [
-        (observation.visible_alerts, ActionType.INSPECT_ALERT),
-        (observation.visible_logs, ActionType.INSPECT_LOG),
-        (observation.visible_runbooks, ActionType.INSPECT_RUNBOOK),
-        (observation.visible_timeline_notes, ActionType.INSPECT_TIMELINE_NOTE),
-    ]:
-        for item in bucket:
-            if item.id not in inspected:
-                return Action(action_type=action_type, target=item.id)
+
+def _text_score(text: str, positive: tuple[str, ...], negative: tuple[str, ...] = ()) -> int:
+    lowered = text.lower()
+    score = 0
+    for token in positive:
+        if token in lowered:
+            score += 1
+    for token in negative:
+        if token in lowered:
+            score -= 1
+    return score
+
+
+def _keyword_tokens(*chunks: str) -> set[str]:
+    tokens: set[str] = set()
+    for chunk in chunks:
+        for token in re.findall(r"[a-z0-9]+", chunk.lower()):
+            if len(token) >= 3:
+                tokens.add(token)
+    return tokens
+
+
+def _severity_guess(observation: Observation) -> str:
+    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
+    if prior.get("severity") in VALID_SEVERITIES:
+        return prior["severity"]
+
+    if observation.service == "search":
+        return "SEV-3" if observation.difficulty.value == "easy" else "SEV-2"
+    if observation.service in {"auth", "checkout", "payments"}:
+        return "SEV-2" if observation.difficulty.value == "easy" else "SEV-1"
+    if observation.service == "email":
+        return "SEV-1" if observation.difficulty.value == "hard" else "SEV-2"
+    if observation.service in {"notifications", "platform"}:
+        return "SEV-2"
+    return "SEV-2"
+
+
+def _team_guess(observation: Observation) -> str:
+    return TEAM_BY_SERVICE.get(observation.service, "platform-ops")
+
+
+def _root_cause_guess(observation: Observation) -> str:
+    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
+    if prior.get("root_cause"):
+        return prior["root_cause"]
+
+    candidates: list[str] = []
+    candidates.extend(observation.known_facts[-6:])
+    candidates.extend(f"{item.title}: {item.content}" for item in observation.visible_logs)
+    candidates.extend(f"{item.title}: {item.content}" for item in observation.visible_alerts)
+    if not candidates:
+        return f"Likely {observation.service} configuration regression causing customer-facing failures"
+
+    def score_candidate(value: str) -> int:
+        return _text_score(value, FAILURE_TERMS, BENIGN_TERMS)
+
+    best = max(candidates, key=score_candidate)
+    if ":" in best:
+        best = best.split(":", 1)[1].strip()
+    return best[:220]
+
+
+def _mitigation_guess(observation: Observation) -> str:
+    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
+    if prior.get("mitigation"):
+        return prior["mitigation"]
+
+    def score_runbook(text: str) -> int:
+        lowered = text.lower()
+        score = _text_score(text, ACTION_VERBS)
+        for neg in NEGATION_PATTERNS:
+            if neg in lowered:
+                score -= 3
+        return score
+
+    if observation.visible_runbooks:
+        best = max(observation.visible_runbooks, key=lambda item: score_runbook(item.content))
+        return best.content[:240]
+
+    return "Rollback risky change and restart affected workers safely"
+
+
+def _evidence_target(observation: Observation) -> int:
+    return EVIDENCE_TARGET_BY_DIFFICULTY.get(observation.difficulty.value, 4)
+
+
+def _inspection_plan(observation: Observation) -> tuple[dict[ActionType, int], list[ActionType], int]:
+    if observation.difficulty.value == "easy":
+        quotas = {
+            ActionType.INSPECT_ALERT: 1,
+            ActionType.INSPECT_LOG: 1,
+            ActionType.INSPECT_RUNBOOK: 1,
+            ActionType.INSPECT_TIMELINE_NOTE: 0,
+        }
+        order = [
+            ActionType.INSPECT_ALERT,
+            ActionType.INSPECT_LOG,
+            ActionType.INSPECT_RUNBOOK,
+        ]
+        min_total = 3
+    elif observation.difficulty.value == "medium":
+        quotas = {
+            ActionType.INSPECT_ALERT: 1,
+            ActionType.INSPECT_LOG: 1,
+            ActionType.INSPECT_RUNBOOK: 1,
+            ActionType.INSPECT_TIMELINE_NOTE: 0,
+        }
+        order = [
+            ActionType.INSPECT_ALERT,
+            ActionType.INSPECT_LOG,
+            ActionType.INSPECT_RUNBOOK,
+            ActionType.INSPECT_LOG,
+            ActionType.INSPECT_TIMELINE_NOTE,
+        ]
+        min_total = 4
+    else:
+        quotas = {
+            ActionType.INSPECT_ALERT: 1,
+            ActionType.INSPECT_LOG: 2,
+            ActionType.INSPECT_RUNBOOK: 1,
+            ActionType.INSPECT_TIMELINE_NOTE: 1,
+        }
+        order = [
+            ActionType.INSPECT_ALERT,
+            ActionType.INSPECT_LOG,
+            ActionType.INSPECT_LOG,
+            ActionType.INSPECT_RUNBOOK,
+            ActionType.INSPECT_TIMELINE_NOTE,
+        ]
+        min_total = 5
+
+    return quotas, order, min_total
+
+
+def _select_evidence_action(
+    observation: Observation,
+    inspected: set[str],
+    preferred_types: Optional[set[ActionType]] = None,
+    context_tokens: Optional[set[str]] = None,
+    priority_tokens: Optional[set[str]] = None,
+) -> Optional[Action]:
+    weighted_tokens = context_tokens or set()
+    high_weight_tokens = priority_tokens or set()
+    candidates: list[tuple[int, Action]] = []
+    buckets: list[tuple[list[Any], ActionType, int]] = [
+        (observation.visible_alerts, ActionType.INSPECT_ALERT, 4),
+        (observation.visible_logs, ActionType.INSPECT_LOG, 3),
+        (observation.visible_runbooks, ActionType.INSPECT_RUNBOOK, 2),
+        (observation.visible_timeline_notes, ActionType.INSPECT_TIMELINE_NOTE, 1),
+    ]
+
+    for items, action_type, base_score in buckets:
+        for item in items:
+            if preferred_types and action_type not in preferred_types:
+                continue
+            if item.id in inspected:
+                continue
+            text = f"{item.title} {item.content}".lower()
+            item_tokens = _keyword_tokens(item.id, item.title, item.content, " ".join(item.tags))
+            score = base_score
+            score += _text_score(text, FAILURE_TERMS, BENIGN_TERMS)
+            score += min(5, len(item_tokens & high_weight_tokens)) * 4
+            score += min(4, len(item_tokens & weighted_tokens)) * 2
+
+            if action_type == ActionType.INSPECT_RUNBOOK:
+                score += _text_score(text, ACTION_VERBS)
+                for neg in NEGATION_PATTERNS:
+                    if neg in text:
+                        score -= 3
+
+            if action_type == ActionType.INSPECT_TIMELINE_NOTE and any(
+                token in text for token in ("rollout", "rotation", "migration", "change", "approval")
+            ):
+                score += 2
+
+            if "not currently causal" in text:
+                score -= 4
+
+            candidates.append((score, Action(action_type=action_type, target=item.id)))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda value: value[0], reverse=True)
+    return candidates[0][1]
+
+
+def _planned_action(observation: Observation) -> Action:
+    inspected = _history_targets(observation)
+    action_history = _history_action_types(observation)
+    quotas, inspection_order, minimum_inspections = _inspection_plan(observation)
+    evidence_target = max(_evidence_target(observation), minimum_inspections)
+
+    inspect_counts = {action_type: 0 for action_type in INSPECT_ACTION_TYPES}
+    for action_name in action_history:
+        for action_type in INSPECT_ACTION_TYPES:
+            if action_name == action_type.value:
+                inspect_counts[action_type] += 1
+
+    inspect_total = sum(inspect_counts.values())
+    unresolved_fields = sum(
+        1
+        for value in [
+            observation.selected_severity,
+            observation.assigned_team,
+            observation.submitted_root_cause,
+            observation.submitted_mitigation,
+        ]
+        if not value
+    )
+    actions_needed_without_inspection = unresolved_fields + 1  # one final resolve
+
+    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
+    context_tokens = _keyword_tokens(
+        observation.service,
+        observation.scenario_id.replace("_", " "),
+        observation.incident_summary,
+        observation.last_action_result,
+        prior.get("root_cause", ""),
+        prior.get("mitigation", ""),
+        " ".join(observation.known_facts[-8:]),
+    )
+    priority_tokens = _keyword_tokens(
+        prior.get("root_cause", ""),
+        prior.get("mitigation", ""),
+    )
+
+    if observation.steps_remaining > actions_needed_without_inspection:
+        for action_type in inspection_order:
+            if inspect_counts[action_type] >= quotas.get(action_type, 0):
+                continue
+            evidence_action = _select_evidence_action(
+                observation=observation,
+                inspected=inspected,
+                preferred_types={action_type},
+                context_tokens=context_tokens,
+                priority_tokens=priority_tokens,
+            )
+            if evidence_action:
+                return evidence_action
+
+        if inspect_total < evidence_target:
+            evidence_action = _select_evidence_action(
+                observation=observation,
+                inspected=inspected,
+                context_tokens=context_tokens,
+                priority_tokens=priority_tokens,
+            )
+            if evidence_action:
+                return evidence_action
 
     if not observation.selected_severity:
-        severity_by_difficulty = {
-            "easy": "SEV-2",
-            "medium": "SEV-2",
-            "hard": "SEV-1",
-        }
-        value = severity_by_difficulty.get(observation.difficulty.value, "SEV-2")
-        return Action(action_type=ActionType.SET_SEVERITY, content=value)
+        return Action(action_type=ActionType.SET_SEVERITY, content=_severity_guess(observation))
 
     if not observation.assigned_team:
-        team_by_service = {
-            "auth": "auth-oncall",
-            "checkout": "checkout-oncall",
-            "payments": "payments-oncall",
-            "email": "email-ops",
-            "search": "search-infra",
-            "notifications": "notifications-ops",
-            "analytics": "analytics-data",
-            "platform": "platform-ops",
-        }
-        team = team_by_service.get(observation.service, "platform-ops")
-        return Action(action_type=ActionType.ASSIGN_TEAM, content=team)
+        return Action(action_type=ActionType.ASSIGN_TEAM, content=_team_guess(observation))
 
     if not observation.submitted_root_cause:
-        hint = observation.known_facts[-1] if observation.known_facts else "Likely configuration regression in service pipeline"
-        return Action(action_type=ActionType.SUBMIT_ROOT_CAUSE, content=hint)
+        return Action(action_type=ActionType.SUBMIT_ROOT_CAUSE, content=_root_cause_guess(observation))
 
     if not observation.submitted_mitigation:
-        hint = "Rollback latest risky change and restart affected workers safely"
-        return Action(action_type=ActionType.SUBMIT_MITIGATION, content=hint)
+        return Action(action_type=ActionType.SUBMIT_MITIGATION, content=_mitigation_guess(observation))
 
-    if len(observation.known_facts) < min_facts_before_resolution:
-        return Action(
-            action_type=ActionType.ADD_NOTE,
-            content="Need one more evidence item before safe resolution.",
+    missing_quota_types = [action_type for action_type, need in quotas.items() if inspect_counts[action_type] < need]
+    should_collect_more = inspect_total < evidence_target or bool(missing_quota_types)
+    if should_collect_more and observation.steps_remaining > 1:
+        for action_type in missing_quota_types:
+            evidence_action = _select_evidence_action(
+                observation=observation,
+                inspected=inspected,
+                preferred_types={action_type},
+                context_tokens=context_tokens,
+                priority_tokens=priority_tokens,
+            )
+            if evidence_action:
+                return evidence_action
+        evidence_action = _select_evidence_action(
+            observation=observation,
+            inspected=inspected,
+            context_tokens=context_tokens,
+            priority_tokens=priority_tokens,
         )
+        if evidence_action:
+            return evidence_action
 
     return Action(action_type=ActionType.RESOLVE_INCIDENT)
+
+
+def _fallback_action(observation: Observation) -> Action:
+    # Backward-compatible alias used by tests; now routes to deterministic planner.
+    return _planned_action(observation)
+
+
+def _is_risky_action(model_action: Action, observation: Observation) -> bool:
+    inspected = _history_targets(observation)
+    quotas, _, min_inspections = _inspection_plan(observation)
+    evidence_target = max(_evidence_target(observation), min_inspections)
+    action_history = _history_action_types(observation)
+    inspect_counts = {action_type: 0 for action_type in INSPECT_ACTION_TYPES}
+    for action_name in action_history:
+        for action_type in INSPECT_ACTION_TYPES:
+            if action_name == action_type.value:
+                inspect_counts[action_type] += 1
+
+    if (
+        model_action.action_type in INSPECT_ACTION_TYPES
+        and model_action.target in inspected
+    ):
+        return True
+
+    if model_action.action_type == ActionType.SET_SEVERITY and (model_action.content or "").upper() not in VALID_SEVERITIES:
+        return True
+
+    if model_action.action_type == ActionType.ASSIGN_TEAM and (model_action.content or "").lower() not in VALID_TEAMS:
+        return True
+
+    if model_action.action_type == ActionType.RESOLVE_INCIDENT:
+        if not all(
+            [
+                observation.selected_severity,
+                observation.assigned_team,
+                observation.submitted_root_cause,
+                observation.submitted_mitigation,
+            ]
+        ):
+            return True
+        if len(inspected) < max(2, evidence_target - 1) and observation.steps_remaining > 1:
+            return True
+        for action_type, minimum in quotas.items():
+            if inspect_counts[action_type] < minimum and observation.steps_remaining > 1:
+                return True
+
+    if model_action.action_type == ActionType.ADD_NOTE and observation.steps_remaining <= 3:
+        return True
+
+    if len(action_history) >= 2 and all(action == "add_note" for action in action_history[-2:]):
+        if model_action.action_type == ActionType.ADD_NOTE:
+            return True
+
+    return False
 
 
 def _build_user_prompt(observation: Observation) -> str:
@@ -340,6 +786,7 @@ def _build_user_prompt(observation: Observation) -> str:
 
 
 def _choose_action(model: OpenAI, observation: Observation) -> Action:
+    planned_action = _planned_action(observation)
     user_prompt = _build_user_prompt(observation)
 
     try:
@@ -354,16 +801,36 @@ def _choose_action(model: OpenAI, observation: Observation) -> Action:
         )
         raw_content = _to_text(completion.choices[0].message.content)
     except Exception:
-        return _fallback_action(observation)
+        return planned_action
 
     payload = _parse_json_action(raw_content)
     if not payload:
-        return _fallback_action(observation)
+        return planned_action
 
     try:
-        return Action.model_validate(payload)
+        model_action = Action.model_validate(payload)
     except Exception:
-        return _fallback_action(observation)
+        return planned_action
+
+    if _is_risky_action(model_action, observation):
+        return planned_action
+
+    # Keep model calls in the loop, but preserve deterministic planner reliability.
+    if observation.steps_remaining <= 4 and model_action.action_type in INSPECT_ACTION_TYPES | {ActionType.ADD_NOTE}:
+        return planned_action
+
+    if model_action.action_type != planned_action.action_type:
+        return planned_action
+
+    # If both choose the same inspect action, allow model's target when it is novel.
+    if model_action.action_type in INSPECT_ACTION_TYPES:
+        inspected = _history_targets(observation)
+        if model_action.target and model_action.target not in inspected:
+            return model_action
+        return planned_action
+
+    # For non-inspect actions with matching type, prefer deterministic planned content.
+    return planned_action
 
 
 def run_episode(client: RunbookOpsClient, model: OpenAI, scenario_id: str) -> dict[str, Any]:

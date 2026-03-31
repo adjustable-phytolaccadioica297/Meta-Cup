@@ -136,6 +136,10 @@ def _char_trigrams(text: str) -> set[str]:
 def _has_negation_conflict(submitted_tokens: list[str], candidate_tokens: set[str]) -> bool:
     if not submitted_tokens or not candidate_tokens:
         return False
+    # Do not treat legitimate negative phrasing as conflict when the reference
+    # itself contains negation (e.g., "did not reload").
+    if candidate_tokens & NEGATION_TOKENS:
+        return False
     for index, token in enumerate(submitted_tokens):
         if token in NEGATION_TOKENS:
             window = submitted_tokens[index + 1 : index + 4]

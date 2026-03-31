@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from inference import _fallback_action, _parse_json_action
-from models import ActionType, Difficulty, Observation
+from models import ActionType, Difficulty, EvidenceType, Observation, PublicEvidence
 
 
 def _base_observation() -> Observation:
@@ -65,7 +65,7 @@ def test_parse_alias_action_name() -> None:
     assert payload == {"action_type": "resolve_incident"}
 
 
-def test_fallback_avoids_early_resolution_when_fact_count_low() -> None:
+def test_fallback_prefers_more_evidence_before_resolution_when_available() -> None:
     observation = _base_observation().model_copy(
         update={
             "selected_severity": "SEV-1",
@@ -73,7 +73,16 @@ def test_fallback_avoids_early_resolution_when_fact_count_low() -> None:
             "submitted_root_cause": "clock skew",
             "submitted_mitigation": "restore ntp",
             "known_facts": ["fact 1", "fact 2"],
+            "visible_alerts": [
+                PublicEvidence(
+                    id="ha1_alert_nonce_mismatch",
+                    type=EvidenceType.ALERT,
+                    title="Nonce mismatch spike",
+                    content="Mismatch errors increasing",
+                    tags=["auth"],
+                )
+            ],
         }
     )
     action = _fallback_action(observation)
-    assert action.action_type == ActionType.ADD_NOTE
+    assert action.action_type == ActionType.INSPECT_ALERT
