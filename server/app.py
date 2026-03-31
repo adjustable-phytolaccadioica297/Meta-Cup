@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -95,3 +96,17 @@ def grade(request: Optional[GradeRequest] = None) -> GraderResult:
 @app.post("/score", response_model=GraderResult)
 def score(request: Optional[GradeRequest] = None) -> GraderResult:
     return grade(request)
+
+
+def main() -> None:
+    import uvicorn
+
+    uvicorn.run(
+        "server.app:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "7860")),
+    )
+
+
+if __name__ == "__main__":
+    main()
