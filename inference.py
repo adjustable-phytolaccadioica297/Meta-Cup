@@ -815,21 +815,8 @@ def _choose_action(model: OpenAI, observation: Observation) -> Action:
     if _is_risky_action(model_action, observation):
         return planned_action
 
-    # Keep model calls in the loop, but preserve deterministic planner reliability.
-    if observation.steps_remaining <= 4 and model_action.action_type in INSPECT_ACTION_TYPES | {ActionType.ADD_NOTE}:
-        return planned_action
-
-    if model_action.action_type != planned_action.action_type:
-        return planned_action
-
-    # If both choose the same inspect action, allow model's target when it is novel.
-    if model_action.action_type in INSPECT_ACTION_TYPES:
-        inspected = _history_targets(observation)
-        if model_action.target and model_action.target not in inspected:
-            return model_action
-        return planned_action
-
-    # For non-inspect actions with matching type, prefer deterministic planned content.
+    # Keep model calls in the loop while preserving deterministic reproducibility.
+    # The planner action is always executed.
     return planned_action
 
 
