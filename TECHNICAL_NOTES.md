@@ -23,7 +23,7 @@ Rubric weights:
 - Evidence coverage adequacy: `0.10`
 - Safe resolution behavior: `0.05`
 
-Score range is clamped to `[0.0, 1.0]`.
+Raw rubric totals are clamped to `[0.0, 1.0]`, then the published task score is epsilon-clamped into `(0,1)` so validators that reject exact boundary values still accept the run.
 
 ### Text Matching Strategy
 

@@ -43,7 +43,7 @@ Most agent benchmarks reward broad reasoning. RunbookOps evaluates operational r
 2. `RunbookOpsEnvironment` loads scenarios and creates episode state.
 3. `reset()` returns partial initial observation.
 4. `step(action)` applies deterministic transition + reward shaping.
-5. `grade()` computes final score in `[0,1]` from rubric components.
+5. `grade()` computes final score from rubric components and returns a validator-safe value strictly inside `(0,1)`.
 6. FastAPI exposes the environment through `/reset`, `/step`, `/state`, `/grade`.
 
 ### Core Files
@@ -131,6 +131,8 @@ Deterministic rubric in `grader.py`:
 | safe resolution behavior | 0.05 |
 
 Text matching is deterministic (normalization, controlled synonyms, overlap/fuzzy thresholds, negation conflict checks).
+
+Implementation note: while rubric components remain intuitive `0.0-1.0` signals, the final published task score is epsilon-clamped into `(0,1)` to satisfy strict validator parsing rules that reject exact boundary values.
 
 ## Sample Episode Walkthrough
 

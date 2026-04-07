@@ -16,9 +16,15 @@ GRADER_WEIGHTS: dict[str, float] = {
     "safe_resolution": 0.05,
 }
 
+STRICT_SCORE_EPSILON = 0.0001
+
 
 def clamp01(value: float) -> float:
     return max(0.0, min(1.0, value))
+
+
+def clamp_open01(value: float, epsilon: float = STRICT_SCORE_EPSILON) -> float:
+    return max(epsilon, min(1.0 - epsilon, value))
 
 
 TOKEN_SYNONYMS: dict[str, str] = {
@@ -251,7 +257,7 @@ def grade_episode(scenario: Scenario, state: InternalStateSnapshot) -> GraderRes
     }
 
     weighted_score = sum(components[key] * GRADER_WEIGHTS[key] for key in GRADER_WEIGHTS)
-    weighted_score = clamp01(weighted_score)
+    weighted_score = clamp_open01(clamp01(weighted_score))
 
     details: list[str] = [
         f"Severity component: {components['severity']:.2f}",

@@ -17,7 +17,7 @@ Incident response is a high-value real-world agent task with concrete success cr
   - `reset()`
   - `step(action)`
   - `state()`
-- Deterministic rubric-based grader with score in `[0.0, 1.0]`.
+- Deterministic rubric-based grader with validator-safe published score in `(0.0, 1.0)`.
 - Dense trajectory reward with partial-progress signals.
 - FastAPI server endpoints for local and container deployment.
 - Baseline `inference.py` using OpenAI client and required env vars.

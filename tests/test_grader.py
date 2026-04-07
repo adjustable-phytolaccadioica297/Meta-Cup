@@ -12,7 +12,7 @@ def test_grader_score_bounds() -> None:
     snapshot = env.state()
     grade = grade_episode(scenario, snapshot)
 
-    assert 0.0 <= grade.score <= 1.0
+    assert 0.0 < grade.score < 1.0
 
 
 def test_alias_matching_for_root_cause_and_mitigation() -> None:
@@ -97,3 +97,36 @@ def test_safe_resolution_requires_enough_evidence() -> None:
 
     grade = grade_episode(scenario, snapshot)
     assert grade.components["safe_resolution"] == 0.0
+
+
+def test_perfect_episode_score_is_strictly_less_than_one() -> None:
+    env = RunbookOpsEnvironment()
+    env.reset(scenario_id="easy_auth_token_expiry")
+    scenario = env.scenario_map["easy_auth_token_expiry"]
+    snapshot = env.state().model_copy(
+        update={
+            "selected_severity": "SEV-2",
+            "assigned_team": "auth-oncall",
+            "submitted_root_cause": scenario.true_root_cause,
+            "submitted_mitigation": scenario.true_mitigation,
+            "inspected_evidence_ids": scenario.required_evidence_ids,
+            "done": True,
+            "resolution_attempted": True,
+            "premature_resolution": False,
+        }
+    )
+
+    grade = grade_episode(scenario, snapshot)
+    assert 0.0 < grade.score < 1.0
+    assert grade.score == 0.9999
+
+
+def test_empty_episode_score_is_strictly_greater_than_zero() -> None:
+    env = RunbookOpsEnvironment()
+    env.reset(scenario_id="easy_auth_token_expiry")
+    scenario = env.scenario_map["easy_auth_token_expiry"]
+    snapshot = env.state()
+
+    grade = grade_episode(scenario, snapshot)
+    assert 0.0 < grade.score < 1.0
+    assert grade.score == 0.0001
