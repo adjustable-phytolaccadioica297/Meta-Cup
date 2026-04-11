@@ -254,14 +254,6 @@ Required env vars:
 - `MODEL_NAME`
 - `HF_TOKEN`
 
-Optional:
-
-- `API_KEY`
-- `OPENAI_API_KEY`
-- `RUNBOOKOPS_BASE_URL`
-- `OPENENV_ENV_URL`
-- `MAX_STEPS`, `TEMPERATURE`, `MAX_TOKENS`, `RESULT_PATH`
-
 Run:
 
 ```bash
@@ -270,8 +262,7 @@ python3 inference.py
 
 Validator-safe behavior:
 
-- If `RUNBOOKOPS_BASE_URL` is unset, `OPENENV_ENV_URL` can be used as an optional alias for the environment endpoint.
-- If neither environment URL is set, or the configured endpoint is unreachable, `inference.py` falls back to the local in-process environment.
+- `inference.py` always uses the local in-process environment, which avoids remote deployment flakiness during validation.
 - If `HF_TOKEN` or other API credentials are missing, `inference.py` falls back to a deterministic planner-only baseline instead of exiting with a non-zero status.
 - When credentials are present, the script initializes the OpenAI client and records `inference_mode: "openai_client"` in the output JSON.
 - Stdout uses the exact validator-facing bracketed format with `[START]`, `[STEP]`, and `[END]` records on single lines.
@@ -280,13 +271,10 @@ Validator-safe behavior:
 Round 1 recommended run (saves reproducible artifact):
 
 ```bash
-mkdir -p artifacts
-export RUNBOOKOPS_BASE_URL="https://<your-space>.hf.space"
 export API_BASE_URL="https://router.huggingface.co/v1"
 export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 export HF_TOKEN="<your_token>"
-export RESULT_PATH="artifacts/inference_live_$(date +%Y%m%d_%H%M%S).json"
-python3 inference.py | tee artifacts/inference_live_stdout.txt
+python3 inference.py | tee baseline_stdout.txt
 ```
 
 Output:
@@ -294,7 +282,7 @@ Output:
 - one `[START] task=... env=runbookops model=...` line per scenario
 - multiple `[STEP] step=... action=... reward=0.00 done=true|false error=...` lines across each episode
 - one `[END] success=true|false steps=... rewards=r1,r2,...,rn` line per scenario
-- JSON summary file (default: `baseline_results.json`)
+- JSON summary file: `baseline_results.json`
 
 Exact stdout contract used by the baseline:
 
@@ -310,8 +298,6 @@ Environment variable expectations:
 - `API_BASE_URL`: required by the hackathon contract, includes a safe default.
 - `MODEL_NAME`: required by the hackathon contract, includes a safe default.
 - `HF_TOKEN`: mandatory secret for real LLM-backed runs, with no default.
-- `RUNBOOKOPS_BASE_URL`: optional preferred environment endpoint variable for this project.
-- `OPENENV_ENV_URL`: optional alias for environment endpoint compatibility and convenience.
 
 ## Docker
 
@@ -339,7 +325,6 @@ This repo is tuned to avoid the specific Round 1 failure modes called out in the
 - `inference.py` is at the repository root.
 - `API_BASE_URL` and `MODEL_NAME` are read with defaults.
 - `HF_TOKEN` is read without a default.
-- `OPENENV_ENV_URL` is supported only as an optional alias, not as a required contract variable.
 - All LLM-backed calls go through `from openai import OpenAI`.
 - Stdout is limited to exact `[START]`, `[STEP]`, and `[END]` records.
 - Published task scores are always strictly inside `(0,1)`.

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import importlib
 import os
 import re
 import subprocess
@@ -110,28 +109,13 @@ def test_hf_token_symbol_exists_without_default_requirement() -> None:
     assert hasattr(inference, "HF_TOKEN")
 
 
-def test_openenv_env_url_alias_is_supported(monkeypatch) -> None:
-    import inference
-
-    monkeypatch.delenv("RUNBOOKOPS_BASE_URL", raising=False)
-    monkeypatch.setenv("OPENENV_ENV_URL", "https://example-openenv.test")
-    reloaded = importlib.reload(inference)
-    try:
-        assert reloaded.OPENENV_ENV_URL == "https://example-openenv.test"
-        assert reloaded.ENV_BASE_URL == "https://example-openenv.test"
-    finally:
-        monkeypatch.delenv("OPENENV_ENV_URL", raising=False)
-        importlib.reload(inference)
-
-
 def test_inference_stdout_uses_structured_markers() -> None:
     root = Path(__file__).resolve().parents[1]
     artifacts_dir = root / "artifacts"
     artifacts_dir.mkdir(exist_ok=True)
     env = os.environ.copy()
-    for key in ("MODEL_NAME", "HF_TOKEN", "API_KEY", "OPENAI_API_KEY", "RUNBOOKOPS_BASE_URL"):
+    for key in ("MODEL_NAME", "HF_TOKEN"):
         env.pop(key, None)
-    env["RESULT_PATH"] = str(artifacts_dir / "test_validator_stdout.json")
 
     completed = subprocess.run(
         [sys.executable, "inference.py"],
@@ -170,9 +154,8 @@ def test_inference_stdout_uses_structured_markers() -> None:
 def test_structured_lines_use_validator_friendly_values() -> None:
     root = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
-    for key in ("MODEL_NAME", "HF_TOKEN", "API_KEY", "OPENAI_API_KEY", "RUNBOOKOPS_BASE_URL"):
+    for key in ("MODEL_NAME", "HF_TOKEN"):
         env.pop(key, None)
-    env["RESULT_PATH"] = str(root / "artifacts" / "test_validator_values.json")
 
     completed = subprocess.run(
         [sys.executable, "inference.py"],
@@ -197,11 +180,9 @@ def test_structured_lines_use_validator_friendly_values() -> None:
 
 def test_written_summary_scores_stay_inside_open_interval() -> None:
     root = Path(__file__).resolve().parents[1]
-    output_path = root / "artifacts" / "test_validator_summary.json"
     env = os.environ.copy()
-    for key in ("MODEL_NAME", "HF_TOKEN", "API_KEY", "OPENAI_API_KEY", "RUNBOOKOPS_BASE_URL"):
+    for key in ("MODEL_NAME", "HF_TOKEN"):
         env.pop(key, None)
-    env["RESULT_PATH"] = str(output_path)
 
     subprocess.run(
         [sys.executable, "inference.py"],
@@ -212,7 +193,7 @@ def test_written_summary_scores_stay_inside_open_interval() -> None:
         check=True,
     )
 
-    summary = json.loads(output_path.read_text())
+    summary = json.loads((root / "baseline_results.json").read_text())
     assert 0.0 < summary["overall_mean_score"] < 1.0
     for result in summary["results"]:
         assert 0.0 < float(result["score"]) < 1.0

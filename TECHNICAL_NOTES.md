@@ -139,7 +139,7 @@ The baseline runner is intentionally robust under validator conditions:
 
 - `API_BASE_URL` and `MODEL_NAME` are read with defaults, matching the submission guide.
 - `HF_TOKEN` is read without a default, matching the submission guide.
-- `OPENENV_ENV_URL` is supported as an optional alias for the environment endpoint, but it is not part of the required submission contract.
+- The baseline runner uses the local in-process environment directly, which removes remote endpoint configuration from the submission path.
 - The OpenAI Python client is used for all LLM-backed calls.
 - Stdout emits only the required single-line records:
   - `[START] task=... env=runbookops model=...`

@@ -4,7 +4,6 @@ import ast
 import json
 import os
 import re
-import sys
 import textwrap
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -14,23 +13,24 @@ from typing import Any, Callable, Optional
 
 from openai import OpenAI
 
-from client import LocalRunbookOpsClient, RunbookOpsClient
+from client import LocalRunbookOpsClient
 from grader import public_score
 from models import Action, ActionType, Observation
 
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+DEFAULT_MAX_STEPS = 12
+DEFAULT_TEMPERATURE = 0.0
+DEFAULT_MAX_TOKENS = 220
+DEFAULT_RESULT_PATH = "baseline_results.json"
 
 API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
 MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
 HF_TOKEN = os.getenv("HF_TOKEN")
-API_KEY = HF_TOKEN or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
-OPENENV_ENV_URL = os.getenv("OPENENV_ENV_URL")
-ENV_BASE_URL = os.getenv("RUNBOOKOPS_BASE_URL") or OPENENV_ENV_URL
-MAX_STEPS = int(os.getenv("MAX_STEPS", "12"))
-TEMPERATURE = float(os.getenv("TEMPERATURE", "0.0"))
-MAX_TOKENS = int(os.getenv("MAX_TOKENS", "220"))
-RESULT_PATH = os.getenv("RESULT_PATH", "baseline_results.json")
+MAX_STEPS = DEFAULT_MAX_STEPS
+TEMPERATURE = DEFAULT_TEMPERATURE
+MAX_TOKENS = DEFAULT_MAX_TOKENS
+RESULT_PATH = DEFAULT_RESULT_PATH
 DIFFICULTY_ORDER = {"easy": 0, "medium": 1, "hard": 2}
 ACTION_ALIASES = {
     "inspect_timeline": "inspect_timeline_note",
@@ -888,24 +888,12 @@ def _choose_action(model: Optional[OpenAI], observation: Observation) -> Action:
     return model_action
 
 
-def _resolve_client() -> tuple[RunbookOpsClient | LocalRunbookOpsClient, str]:
-    if ENV_BASE_URL:
-        remote_client = RunbookOpsClient(base_url=ENV_BASE_URL)
-        try:
-            remote_client.health()
-            return remote_client, ENV_BASE_URL
-        except Exception as exc:
-            print(
-                f"Warning: failed to reach configured environment URL {ENV_BASE_URL!r} "
-                f"({exc}). Falling back to local in-process environment.",
-                file=sys.stderr,
-                flush=True,
-            )
+def _resolve_client() -> tuple[LocalRunbookOpsClient, str]:
     return LocalRunbookOpsClient(), "local"
 
 
 def run_episode(
-    client: RunbookOpsClient | LocalRunbookOpsClient,
+    client: LocalRunbookOpsClient,
     model: Optional[OpenAI],
     scenario_id: str,
     step_callback: Optional[Callable[[dict[str, Any]], None]] = None,
@@ -999,9 +987,9 @@ def main() -> None:
     model: Optional[OpenAI] = None
     inference_mode = "planner_only"
     warnings: list[str] = []
-    if API_KEY:
+    if HF_TOKEN:
         try:
-            model = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+            model = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
             inference_mode = "openai_client"
         except Exception as exc:
             warnings.append(
@@ -1009,9 +997,7 @@ def main() -> None:
                 f"{exc}"
             )
     else:
-        warnings.append(
-            "No HF_TOKEN/API_KEY/OPENAI_API_KEY detected; using deterministic planner-only baseline."
-        )
+        warnings.append("No HF_TOKEN detected; using deterministic planner-only baseline.")
 
     scenarios = sorted(
         client.scenarios(),
@@ -1089,7 +1075,6 @@ def main() -> None:
         "model_name": MODEL_NAME,
         "api_base_url": API_BASE_URL,
         "environment_base_url": resolved_env_base_url,
-        "openenv_env_url": OPENENV_ENV_URL,
         "inference_mode": inference_mode,
         "environment_health": health,
         "hf_token_present": bool(HF_TOKEN),

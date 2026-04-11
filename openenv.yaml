@@ -148,15 +148,6 @@ baseline:
     - API_BASE_URL
     - MODEL_NAME
     - HF_TOKEN
-  optional_env_vars:
-    - API_KEY
-    - OPENAI_API_KEY
-    - RUNBOOKOPS_BASE_URL
-    - OPENENV_ENV_URL
-    - MAX_STEPS
-    - TEMPERATURE
-    - MAX_TOKENS
-    - RESULT_PATH
 
 tasks:
   - id: easy
