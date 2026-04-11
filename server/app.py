@@ -51,49 +51,74 @@ def _landing_page_html() -> str:
     <title>RunbookOps - CaseOps Benchmark</title>
     <style>
       :root {{
-        --bg: #08111f;
-        --panel: rgba(10, 20, 38, 0.72);
-        --panel-strong: rgba(12, 24, 44, 0.88);
-        --text: #ebf2ff;
-        --muted: #b7c5df;
-        --line: rgba(150, 180, 220, 0.18);
-        --accent: #5eead4;
-        --accent-strong: #38bdf8;
-        --warm: #f59e0b;
-        --success: #86efac;
+        --canvas: #efe4d4;
+        --canvas-deep: #e0d0b8;
+        --paper: rgba(255, 251, 244, 0.9);
+        --paper-strong: #fffaf3;
+        --ink: #201b18;
+        --ink-soft: #5f564f;
+        --line: rgba(69, 56, 47, 0.14);
+        --rail: #243041;
+        --rail-soft: #314155;
+        --cream: #fff6e7;
+        --accent: #b95b38;
+        --accent-dark: #8f4428;
+        --teal: #2f6b64;
+        --gold: #b88a2b;
+        --success: #83c589;
       }}
       * {{ box-sizing: border-box; }}
       body {{
         margin: 0;
         min-height: 100vh;
-        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: var(--text);
+        color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 32%),
-          radial-gradient(circle at top right, rgba(94, 234, 212, 0.16), transparent 30%),
-          linear-gradient(180deg, #07101d 0%, #0b1324 48%, #111a2f 100%);
+          radial-gradient(circle at top right, rgba(185, 91, 56, 0.12), transparent 34%),
+          radial-gradient(circle at left 20%, rgba(47, 107, 100, 0.1), transparent 28%),
+          linear-gradient(180deg, var(--canvas) 0%, #eadfcd 48%, var(--canvas-deep) 100%);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }}
       a {{ color: inherit; text-decoration: none; }}
       .shell {{
         width: min(1180px, calc(100vw - 32px));
         margin: 0 auto;
-        padding: 40px 0 56px;
+        padding: 32px 0 56px;
       }}
-      .hero {{
+      .masthead {{
         display: grid;
-        grid-template-columns: 1.4fr 0.9fr;
-        gap: 24px;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
+        gap: 22px;
         align-items: stretch;
       }}
       .panel {{
-        background: var(--panel);
+        border-radius: 34px;
         border: 1px solid var(--line);
-        border-radius: 28px;
-        backdrop-filter: blur(18px);
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+        box-shadow: 0 28px 72px rgba(62, 43, 27, 0.14);
+      }}
+      .hero {{
+        position: relative;
+        overflow: hidden;
+        background:
+          linear-gradient(145deg, rgba(255, 251, 244, 0.95) 0%, rgba(248, 240, 229, 0.9) 100%);
+      }}
+      .hero::before {{
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(47, 107, 100, 0.06), transparent 30%),
+          linear-gradient(0deg, rgba(185, 91, 56, 0.05), transparent 40%);
+        pointer-events: none;
       }}
       .hero-copy {{
-        padding: 36px;
+        position: relative;
+        padding: 38px 38px 34px;
+      }}
+      .hero-topline {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
       }}
       .eyebrow {{
         display: inline-flex;
@@ -101,32 +126,51 @@ def _landing_page_html() -> str:
         gap: 8px;
         padding: 8px 12px;
         border-radius: 999px;
-        background: rgba(94, 234, 212, 0.12);
-        border: 1px solid rgba(94, 234, 212, 0.25);
+        background: rgba(47, 107, 100, 0.1);
+        border: 1px solid rgba(47, 107, 100, 0.16);
+        color: var(--teal);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }}
+      .eyebrow.warm {{
+        background: rgba(185, 91, 56, 0.1);
+        border-color: rgba(185, 91, 56, 0.16);
         color: var(--accent);
+      }}
+      .project-kicker {{
+        margin: 18px 0 10px;
+        color: var(--ink-soft);
         font-size: 13px;
         font-weight: 700;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
       }}
       h1 {{
-        margin: 18px 0 14px;
-        font-size: clamp(38px, 6vw, 64px);
-        line-height: 0.94;
-        letter-spacing: -0.04em;
+        margin: 0;
+        max-width: 10ch;
+        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+        font-size: clamp(42px, 6vw, 76px);
+        line-height: 0.92;
+        letter-spacing: -0.05em;
+        color: #171311;
       }}
       .lede {{
-        max-width: 62ch;
-        margin: 0 0 24px;
-        color: var(--muted);
-        font-size: 17px;
-        line-height: 1.65;
+        max-width: 64ch;
+        margin: 18px 0 0;
+        color: var(--ink-soft);
+        font-size: 18px;
+        line-height: 1.7;
+      }}
+      .lede strong {{
+        color: var(--ink);
       }}
       .cta-row {{
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        margin: 24px 0 28px;
+        margin: 26px 0 30px;
       }}
       .button {{
         display: inline-flex;
@@ -135,18 +179,22 @@ def _landing_page_html() -> str:
         gap: 10px;
         min-width: 150px;
         padding: 14px 18px;
-        border-radius: 16px;
-        font-weight: 700;
-        border: 1px solid transparent;
+        border-radius: 999px;
+        font-weight: 800;
+        border: 1px solid var(--line);
       }}
       .button.primary {{
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-        color: #08111f;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+        border-color: rgba(143, 68, 40, 0.18);
+        color: var(--cream);
       }}
       .button.secondary {{
-        background: rgba(255, 255, 255, 0.04);
-        border-color: var(--line);
-        color: var(--text);
+        background: rgba(36, 48, 65, 0.06);
+        color: var(--ink);
+      }}
+      .button.ghost {{
+        background: transparent;
+        color: var(--ink-soft);
       }}
       .metrics {{
         display: grid;
@@ -154,69 +202,71 @@ def _landing_page_html() -> str:
         gap: 12px;
       }}
       .metric {{
-        padding: 16px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 18px 16px 16px;
+        border-radius: 22px;
+        background: rgba(255, 250, 243, 0.85);
+        border: 1px solid rgba(69, 56, 47, 0.1);
       }}
       .metric .value {{
-        font-size: 30px;
+        font-size: 34px;
         font-weight: 800;
         letter-spacing: -0.04em;
       }}
       .metric .label {{
         margin-top: 4px;
-        color: var(--muted);
-        font-size: 13px;
+        color: var(--ink-soft);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
       }}
-      .hero-side {{
+      .caseboard {{
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at top right, rgba(184, 138, 43, 0.16), transparent 24%),
+          linear-gradient(180deg, var(--rail) 0%, #18222e 100%);
+        color: #f0efe9;
         padding: 28px;
         display: flex;
         flex-direction: column;
         gap: 16px;
+      }}
+      .caseboard::after {{
+        content: "";
+        position: absolute;
+        inset: auto 24px 20px auto;
+        width: 96px;
+        height: 96px;
+        border-radius: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        transform: rotate(8deg);
+        pointer-events: none;
       }}
       .badge {{
         display: inline-flex;
         width: fit-content;
         padding: 7px 11px;
         border-radius: 999px;
-        background: rgba(134, 239, 172, 0.14);
-        border: 1px solid rgba(134, 239, 172, 0.26);
-        color: var(--success);
+        background: rgba(131, 197, 137, 0.14);
+        border: 1px solid rgba(131, 197, 137, 0.22);
+        color: #dff2e0;
         font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+        font-weight: 800;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
       }}
       .card-title {{
         margin: 0;
-        font-size: 22px;
+        font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+        font-size: 31px;
         font-weight: 800;
+        line-height: 1.04;
       }}
       .bullet-list {{
         margin: 0;
         padding-left: 18px;
-        color: var(--muted);
+        color: rgba(240, 239, 233, 0.84);
         line-height: 1.7;
-      }}
-      .surface {{
-        margin-top: 24px;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 16px;
-      }}
-      .surface-card {{
-        padding: 22px;
-      }}
-      .surface-card h3 {{
-        margin: 0 0 10px;
-        font-size: 18px;
-      }}
-      .surface-card p {{
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.65;
-        font-size: 14px;
       }}
       .route-list {{
         margin-top: 12px;
@@ -228,21 +278,52 @@ def _landing_page_html() -> str:
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        padding: 12px 14px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 13px 14px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
       }}
       .route code {{
-        color: var(--accent);
+        color: #9de4d6;
         font-size: 13px;
+        font-weight: 700;
       }}
       .route span {{
-        color: var(--muted);
+        color: rgba(240, 239, 233, 0.7);
         font-size: 13px;
       }}
+      .surface {{
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }}
+      .surface-card {{
+        padding: 22px 22px 24px;
+        background: rgba(255, 249, 241, 0.86);
+      }}
+      .surface-card h3 {{
+        margin: 0 0 12px;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }}
+      .surface-card p {{
+        margin: 0;
+        color: var(--ink-soft);
+        line-height: 1.72;
+        font-size: 14px;
+      }}
+      .surface-card .small-label {{
+        display: inline-block;
+        margin-bottom: 12px;
+        color: var(--gold);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }}
       @media (max-width: 980px) {{
-        .hero, .surface {{
+        .masthead, .surface {{
           grid-template-columns: 1fr;
         }}
         .metrics {{
@@ -254,30 +335,38 @@ def _landing_page_html() -> str:
           width: min(100vw - 20px, 1180px);
           padding-top: 20px;
         }}
-        .hero-copy, .hero-side, .surface-card {{
+        .hero-copy, .caseboard, .surface-card {{
           padding: 22px;
         }}
         .metrics {{
           grid-template-columns: 1fr 1fr;
+        }}
+        h1 {{
+          max-width: none;
         }}
       }}
     </style>
   </head>
   <body>
     <main class="shell">
-      <section class="hero">
-        <div class="panel hero-copy">
-          <div class="eyebrow">OpenEnv RL Challenge</div>
-          <h1>RunbookOps<br />CaseOps Benchmark</h1>
+      <section class="masthead">
+        <div class="panel hero">
+          <div class="hero-copy">
+            <div class="hero-topline">
+              <div class="eyebrow">OpenEnv RL Challenge</div>
+              <div class="eyebrow warm">Deterministic and offline</div>
+            </div>
+            <p class="project-kicker">RunbookOps / CaseOps Benchmark</p>
+            <h1>Operational case handling for agents that need to earn the close.</h1>
           <p class="lede">
-            A deterministic benchmark for operational case handling. Agents must gather evidence,
-            classify severity, route ownership, identify cause, choose a safe resolution, and close
-            customer-impact cases without shallow shortcuts.
+            <strong>RunbookOps</strong> turns real operational work into a deterministic benchmark.
+            Agents must gather evidence, classify impact, route ownership, diagnose the issue,
+            choose a safe resolution, and close customer-facing cases without shallow shortcuts.
           </p>
           <div class="cta-row">
             <a class="button primary" href="/docs">Open API Docs</a>
             <a class="button secondary" href="/scenarios">Browse Scenarios</a>
-            <a class="button secondary" href="/health">Health Check</a>
+            <a class="button ghost" href="/health">Health Check</a>
           </div>
           <div class="metrics">
             <div class="metric">
@@ -298,9 +387,10 @@ def _landing_page_html() -> str:
             </div>
           </div>
         </div>
-        <aside class="panel hero-side">
+        </div>
+        <aside class="panel caseboard">
           <div class="badge">Deterministic and Offline</div>
-          <h2 class="card-title">Why this benchmark matters</h2>
+          <h2 class="card-title">Why judges and builders can trust this benchmark</h2>
           <ul class="bullet-list">
             <li>Real operational work instead of a toy game loop</li>
             <li>No LLM-as-judge scoring or hidden internet dependencies</li>
@@ -318,6 +408,7 @@ def _landing_page_html() -> str:
 
       <section class="surface">
         <article class="panel surface-card">
+          <span class="small-label">Evidence first</span>
           <h3>Evidence-Based Resolution</h3>
           <p>
             Cases expose alerts, logs, workflow playbooks, and timeline notes gradually. The
@@ -325,6 +416,7 @@ def _landing_page_html() -> str:
           </p>
         </article>
         <article class="panel surface-card">
+          <span class="small-label">Built for review</span>
           <h3>Judge-Friendly Structure</h3>
           <p>
             Typed models, FastAPI endpoints, Docker deployment, deterministic grading, and a
@@ -332,6 +424,7 @@ def _landing_page_html() -> str:
           </p>
         </article>
         <article class="panel surface-card">
+          <span class="small-label">Broader audience</span>
           <h3>Broader Than Infra Ops</h3>
           <p>
             RunbookOps is framed as operational case handling across access failures, order issues,
