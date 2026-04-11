@@ -24,7 +24,6 @@ DEFAULT_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
 MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
 HF_TOKEN = os.getenv("HF_TOKEN")
-LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 API_KEY = HF_TOKEN or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
 OPENENV_ENV_URL = os.getenv("OPENENV_ENV_URL")
 ENV_BASE_URL = os.getenv("RUNBOOKOPS_BASE_URL") or OPENENV_ENV_URL
@@ -1094,7 +1093,6 @@ def main() -> None:
         "inference_mode": inference_mode,
         "environment_health": health,
         "hf_token_present": bool(HF_TOKEN),
-        "local_image_name": LOCAL_IMAGE_NAME,
         "max_steps": MAX_STEPS,
         "warnings": warnings,
         "results": episode_results,

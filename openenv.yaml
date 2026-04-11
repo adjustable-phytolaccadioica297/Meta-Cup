@@ -151,7 +151,6 @@ baseline:
   optional_env_vars:
     - API_KEY
     - OPENAI_API_KEY
-    - LOCAL_IMAGE_NAME
     - RUNBOOKOPS_BASE_URL
     - OPENENV_ENV_URL
     - MAX_STEPS

@@ -194,6 +194,32 @@ def test_perfect_solutions_vary_across_scenarios() -> None:
     assert easy_grade.score != hard_grade.score
 
 
+def test_solved_scenarios_produce_broad_score_variance() -> None:
+    env = RunbookOpsEnvironment()
+    solved_scores = []
+
+    for scenario in env.scenarios:
+        env.reset(scenario_id=scenario.scenario_id)
+        solved_snapshot = env.state().model_copy(
+            update={
+                "selected_severity": scenario.true_severity.value,
+                "assigned_team": scenario.true_owner_team.value,
+                "submitted_root_cause": scenario.true_root_cause,
+                "submitted_mitigation": scenario.true_mitigation,
+                "inspected_evidence_ids": scenario.required_evidence_ids,
+                "discovered_relevant_evidence_ids": scenario.required_evidence_ids,
+                "done": True,
+                "steps_taken": min(scenario.max_steps, len(scenario.required_evidence_ids) + 5),
+                "resolution_attempted": True,
+                "premature_resolution": False,
+                "terminal_reason": "resolved_safely",
+            }
+        )
+        solved_scores.append(grade_episode(scenario, solved_snapshot).score)
+
+    assert len(set(solved_scores)) >= 8
+
+
 def test_irrelevant_overinspection_reduces_evidence_score() -> None:
     env = RunbookOpsEnvironment()
     env.reset(scenario_id="medium_email_provider_vs_config")

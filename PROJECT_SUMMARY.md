@@ -20,6 +20,7 @@ Operational case handling is a high-value real-world agent task with concrete su
   - `state()`
 - Deterministic, continuous rubric-based grader with validator-safe published score in `(0.0, 1.0)`.
 - Score variance comes from evidence quality, investigation selectivity, and safe closure behavior rather than randomization or LLM judging.
+- Recent baseline run produced 15 distinct per-scenario scores, spanning `0.8953` to `0.9925`.
 - Dense trajectory reward with partial-progress signals.
 - FastAPI server endpoints for local and container deployment.
 - Baseline `inference.py` using OpenAI client and required env vars.

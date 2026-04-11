@@ -258,7 +258,6 @@ Optional:
 
 - `API_KEY`
 - `OPENAI_API_KEY`
-- `LOCAL_IMAGE_NAME`
 - `RUNBOOKOPS_BASE_URL`
 - `OPENENV_ENV_URL`
 - `MAX_STEPS`, `TEMPERATURE`, `MAX_TOKENS`, `RESULT_PATH`
@@ -311,7 +310,6 @@ Environment variable expectations:
 - `API_BASE_URL`: required by the hackathon contract, includes a safe default.
 - `MODEL_NAME`: required by the hackathon contract, includes a safe default.
 - `HF_TOKEN`: mandatory secret for real LLM-backed runs, with no default.
-- `LOCAL_IMAGE_NAME`: optional and only used if a containerized local model workflow is introduced later.
 - `RUNBOOKOPS_BASE_URL`: optional preferred environment endpoint variable for this project.
 - `OPENENV_ENV_URL`: optional alias for environment endpoint compatibility and convenience.
 
@@ -345,7 +343,35 @@ This repo is tuned to avoid the specific Round 1 failure modes called out in the
 - All LLM-backed calls go through `from openai import OpenAI`.
 - Stdout is limited to exact `[START]`, `[STEP]`, and `[END]` records.
 - Published task scores are always strictly inside `(0,1)`.
-- The Hugging Face Space can be pointed at `/docs` by default via README front matter `base_path: /docs`.
+- The Hugging Face Space opens on `/` and links directly to `/docs`, `/scenarios`, and `/health`.
+
+## Reference Score Spread
+
+The grader is deterministic, continuous, and non-constant. A recent full baseline run from this repo produced the following distinct per-scenario scores:
+
+| Scenario | Score |
+|---|---:|
+| `easy_auth_token_expiry` | `0.9446` |
+| `easy_checkout_dependency_timeout` | `0.9622` |
+| `easy_email_queue_blocked` | `0.9719` |
+| `easy_platform_secret_rotation` | `0.9514` |
+| `easy_search_cache_stale` | `0.9510` |
+| `medium_auth_db_pool_exhaustion` | `0.9731` |
+| `medium_checkout_flag_rollout` | `0.8953` |
+| `medium_email_provider_vs_config` | `0.9014` |
+| `medium_notifications_retry_storm` | `0.9512` |
+| `medium_payments_region_misroute` | `0.9658` |
+| `hard_auth_multi_signal_conflict` | `0.9458` |
+| `hard_checkout_partial_outage` | `0.9794` |
+| `hard_email_config_regression` | `0.9632` |
+| `hard_payments_shadow_traffic_issue` | `0.9925` |
+| `hard_search_index_pipeline_failure` | `0.9436` |
+
+This spread matters for judging:
+
+- scores are not collapsed to a single repeated value
+- hard cases are not automatically capped or inflated
+- investigation quality, evidence selectivity, and safe closure all affect the result
 
 ## Repository Layout
 

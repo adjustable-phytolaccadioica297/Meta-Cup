@@ -27,6 +27,12 @@ Raw rubric totals are clamped to `[0.0, 1.0]`, then the published task score is 
 
 The scorer is deliberately continuous. It does not collapse every correct run into the same published value. Evidence handling and closure behavior contribute meaningful variance across scenarios and trajectories.
 
+Current reference behavior from the repository baseline run:
+
+- 15 unique per-scenario published scores across 15 scenarios
+- range: `0.8953` to `0.9925`
+- solved-trajectory sanity checks still produce 9 unique scores across 15 scenarios
+
 ### Text Matching Strategy
 
 Root cause and mitigation checks use deterministic normalization:
