@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
-from inference import _fallback_action, _parse_json_action
+from client import LocalRunbookOpsClient
+from inference import _fallback_action, _parse_json_action, _planned_action
 from models import ActionType, Difficulty, EvidenceType, Observation, PublicEvidence
 
 
@@ -126,6 +128,10 @@ def test_inference_stdout_uses_structured_markers() -> None:
     )
 
     lines = [line for line in completed.stdout.splitlines() if line.strip()]
+    assert all(
+        line.startswith("[START] ") or line.startswith("[STEP] ") or line.startswith("[END] ")
+        for line in lines
+    )
     start_lines = [line for line in lines if line.startswith("[START] ")]
     step_lines = [line for line in lines if line.startswith("[STEP] ")]
     end_lines = [line for line in lines if line.startswith("[END] ")]
@@ -134,4 +140,59 @@ def test_inference_stdout_uses_structured_markers() -> None:
     assert len(end_lines) == 15
     assert len(step_lines) >= 15
     assert "task=easy_auth_token_expiry" in start_lines[0]
-    assert "score=" in end_lines[-1]
+    assert "env=runbookops" in start_lines[0]
+    assert "model=" in start_lines[0]
+    assert "action=" in step_lines[0]
+    assert "reward=" in step_lines[0]
+    assert "done=" in step_lines[0]
+    assert "error=" in step_lines[0]
+    assert "success=" in end_lines[-1]
+    assert "steps=" in end_lines[-1]
+    assert "rewards=" in end_lines[-1]
+    assert lines.index(start_lines[0]) < lines.index(step_lines[0]) < lines.index(end_lines[0])
+
+
+def test_structured_lines_use_validator_friendly_values() -> None:
+    root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    for key in ("MODEL_NAME", "HF_TOKEN", "API_KEY", "OPENAI_API_KEY", "RUNBOOKOPS_BASE_URL"):
+        env.pop(key, None)
+    env["RESULT_PATH"] = str(root / "artifacts" / "test_validator_values.json")
+
+    completed = subprocess.run(
+        [sys.executable, "inference.py"],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    lines = [line for line in completed.stdout.splitlines() if line.strip()]
+    first_step = next(line for line in lines if line.startswith("[STEP] "))
+    first_end = next(line for line in lines if line.startswith("[END] "))
+
+    assert re.search(r"reward=-?\d+\.\d{2}\b", first_step)
+    assert re.search(r"done=(true|false)\b", first_step)
+    assert re.search(r"error=([^\s]+|null)\b", first_step)
+    assert re.search(r"success=(true|false)\b", first_end)
+    assert re.search(r"steps=\d+\b", first_end)
+    assert re.search(r"rewards=(-?\d+\.\d{2}(,-?\d+\.\d{2})*|)\b", first_end)
+
+
+def test_planner_resolves_without_late_duplicate_inspects_on_hard_case() -> None:
+    client = LocalRunbookOpsClient()
+    observation = client.reset("hard_search_index_pipeline_failure")
+    actions: list[str] = []
+
+    for _ in range(12):
+        action = _planned_action(observation)
+        actions.append(action.action_type.value)
+        result = client.step(action)
+        observation = result.observation
+        if result.done:
+            break
+
+    assert actions[-1] == "resolve_incident"
+    assert actions.count("inspect_alert") == 1
+    assert actions.count("inspect_log") == 2

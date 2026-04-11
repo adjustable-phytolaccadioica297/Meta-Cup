@@ -195,7 +195,7 @@ class RunbookOpsEnvironment:
             steps_taken=state.steps_taken,
             steps_remaining=max(0, state.scenario.max_steps - state.steps_taken),
             done=state.done,
-            action_history_summary=state.action_trace[-8:],
+            action_history_summary=state.action_trace[:],
             available_action_types=available_actions,
         )
 

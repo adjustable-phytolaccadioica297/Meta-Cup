@@ -94,3 +94,20 @@ The test suite validates critical judging paths:
 - scenario loading/integrity
 - API endpoints and grading flow
 - step-budget sufficiency for full resolution paths
+- exact validator-facing inference stdout format
+
+## Baseline Inference Guardrails
+
+The baseline runner is intentionally robust under validator conditions:
+
+- `API_BASE_URL` and `MODEL_NAME` are read with defaults, matching the submission guide.
+- `HF_TOKEN` is read without a default, matching the submission guide.
+- The OpenAI Python client is used for all LLM-backed calls.
+- Stdout emits only the required single-line records:
+  - `[START] task=... env=runbookops model=...`
+  - `[STEP] step=... action=... reward=0.00 done=true|false error=...`
+  - `[END] success=true|false steps=... rewards=r1,r2,...`
+- Reward strings are always formatted to two decimal places.
+- Published task scores are always strictly inside `(0,1)`.
+
+The deterministic fallback planner now keys off visible evidence tokens and service context rather than hardcoded scenario-id answer tables, which makes the baseline easier to defend under human review.

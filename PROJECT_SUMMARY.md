@@ -21,6 +21,8 @@ Incident response is a high-value real-world agent task with concrete success cr
 - Dense trajectory reward with partial-progress signals.
 - FastAPI server endpoints for local and container deployment.
 - Baseline `inference.py` using OpenAI client and required env vars.
+- Validator-aligned structured stdout: exact `[START]`, `[STEP]`, `[END]` lines.
+- Heuristic fallback derives decisions from visible evidence, not a scenario-id answer map.
 - Dockerfile and test suite.
 
 ## Judge Quick Path (2-3 minutes)

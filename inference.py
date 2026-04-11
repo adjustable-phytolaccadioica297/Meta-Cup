@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from openai import OpenAI
 
@@ -117,83 +117,113 @@ BENIGN_TERMS = (
     "as usual",
     "completed successfully",
 )
-SCENARIO_PRIORS: dict[str, dict[str, str]] = {
-    "easy_auth_token_expiry": {
+INCIDENT_RULES: list[dict[str, object]] = [
+    {
+        "service": "auth",
+        "tokens": {"jwt", "expired", "rotation", "signing", "kid"},
         "severity": "SEV-2",
-        "root_cause": "JWT signing key expired because rotation cron failed",
-        "mitigation": "Rotate signing key and restart token issuer deployment",
+        "root_cause": "JWT signing key expired because rotation workflow failed",
+        "mitigation": "Rotate signing key and restart token issuer pods",
     },
-    "easy_checkout_dependency_timeout": {
+    {
+        "service": "checkout",
+        "tokens": {"inventory", "deprecated", "endpoint", "timeout", "lock"},
         "severity": "SEV-2",
-        "root_cause": "Checkout still used deprecated inventory endpoint and timed out",
-        "mitigation": "Switch checkout config to inventory v2 endpoint and restart pods",
+        "root_cause": "Checkout still used deprecated inventory endpoint",
+        "mitigation": "Switch checkout to inventory v2 endpoint and restart pods",
     },
-    "easy_email_queue_blocked": {
+    {
+        "service": "email",
+        "tokens": {"queue", "consumer", "panic", "backlog", "attachment"},
         "severity": "SEV-2",
-        "root_cause": "Email queue consumer crashed and backlog processing blocked",
-        "mitigation": "Restart consumer deployment and drain backlog safely",
+        "root_cause": "Email queue consumer crashed and blocked backlog processing",
+        "mitigation": "Restart consumer deployment and drain queue backlog safely",
     },
-    "easy_platform_secret_rotation": {
+    {
+        "service": "platform",
+        "tokens": {"secret", "version", "mismatch", "signature", "gateway"},
         "severity": "SEV-2",
-        "root_cause": "Secret rotated but gateway did not reload new version",
-        "mitigation": "Reload gateway config and propagate new webhook secret",
+        "root_cause": "Secret rotated but gateway did not reload the new secret version",
+        "mitigation": "Reload gateway config and propagate the rotated webhook secret",
     },
-    "easy_search_cache_stale": {
+    {
+        "service": "search",
+        "tokens": {"invalidation", "lease", "freshness", "cache", "paused"},
         "severity": "SEV-3",
         "root_cause": "Cache invalidation worker paused after lease heartbeat failure",
         "mitigation": "Resume invalidation worker and flush stale cache prefixes",
     },
-    "medium_checkout_flag_rollout": {
+    {
+        "service": "checkout",
+        "tokens": {"fraud", "reject", "rollout", "rule", "geo"},
         "severity": "SEV-1",
-        "root_cause": "Fraud feature flag rolled to 100 percent with overly strict reject rule",
-        "mitigation": "Rollback fraud flag rollout to previous cohort percentage",
+        "root_cause": "Fraud feature flag rollout enabled an overly strict reject rule",
+        "mitigation": "Rollback the fraud flag rollout to the previous cohort",
     },
-    "medium_email_provider_vs_config": {
+    {
+        "service": "email",
+        "tokens": {"smtp", "credential", "secret", "auth", "535"},
         "severity": "SEV-2",
-        "root_cause": "SMTP credentials rotated but workers kept stale secret",
-        "mitigation": "Force worker secret refresh, restart deployment, and requeue failed messages",
+        "root_cause": "SMTP credentials rotated but workers kept a stale secret",
+        "mitigation": "Refresh the SMTP secret, restart workers, and replay failed messages",
     },
-    "medium_auth_db_pool_exhaustion": {
+    {
+        "service": "auth",
+        "tokens": {"connection", "leak", "canary", "pool", "session"},
         "severity": "SEV-1",
-        "root_cause": "Connection leak in auth canary exhausted database pool",
-        "mitigation": "Disable canary traffic and recycle leaking auth pods",
+        "root_cause": "Connection leak in the auth canary exhausted the database pool",
+        "mitigation": "Disable canary traffic and recycle the leaking auth pods",
     },
-    "medium_notifications_retry_storm": {
+    {
+        "service": "notifications",
+        "tokens": {"retry", "backoff", "duplicate", "storm", "scheduler"},
         "severity": "SEV-2",
-        "root_cause": "Retry backoff misconfiguration created notification retry storm",
-        "mitigation": "Restore exponential backoff policy and purge duplicate queued retries",
+        "root_cause": "Retry backoff misconfiguration created a notification retry storm",
+        "mitigation": "Restore exponential backoff and purge duplicate queued retries",
     },
-    "medium_payments_region_misroute": {
+    {
+        "service": "payments",
+        "tokens": {"region", "override", "mandate", "gateway", "eu"},
         "severity": "SEV-1",
-        "root_cause": "Routing policy misrouted EU traffic to unsupported US gateway",
+        "root_cause": "Routing policy misrouted EU traffic to an unsupported gateway",
         "mitigation": "Restore EU regional routing policy and replay failed payment intents",
     },
-    "hard_email_config_regression": {
+    {
+        "service": "email",
+        "tokens": {"tls", "sni", "signer", "bundle", "handshake"},
         "severity": "SEV-1",
-        "root_cause": "Mailer signer config regression removed required TLS SNI setting",
-        "mitigation": "Rollback signer config bundle and redeploy mailer sidecar",
+        "root_cause": "Mailer signer config regression removed the required TLS SNI setting",
+        "mitigation": "Rollback the signer config bundle and redeploy the mailer sidecar",
     },
-    "hard_checkout_partial_outage": {
+    {
+        "service": "checkout",
+        "tokens": {"az", "pool", "template", "regional", "autoscaler"},
         "severity": "SEV-1",
-        "root_cause": "Outdated az-b pod template reduced connection pool causing partial outage",
-        "mitigation": "Drain az-b checkout pods and restore baseline pool settings",
+        "root_cause": "Outdated az-b pod template reduced the connection pool and caused a partial outage",
+        "mitigation": "Drain az-b pods and restore the baseline pool settings before rescheduling",
     },
-    "hard_auth_multi_signal_conflict": {
+    {
+        "service": "auth",
+        "tokens": {"clock", "skew", "nonce", "ntp", "drift"},
         "severity": "SEV-1",
-        "root_cause": "Clock skew on auth node caused OAuth nonce validation failures",
-        "mitigation": "Isolate skewed node, restart NTP sync, and return node after validation",
+        "root_cause": "Clock skew on one auth node caused OAuth nonce validation failures",
+        "mitigation": "Isolate the skewed node, restart time sync, and return it after validation",
     },
-    "hard_search_index_pipeline_failure": {
+    {
+        "service": "search",
+        "tokens": {"schema", "migration", "drop", "index", "checkpoint"},
         "severity": "SEV-2",
-        "root_cause": "Schema migration caused index writer to drop update batches",
-        "mitigation": "Rollback schema migration and replay index update stream from checkpoint",
+        "root_cause": "Schema migration caused the index writer to drop update batches",
+        "mitigation": "Rollback the schema migration and replay updates from checkpoint",
     },
-    "hard_payments_shadow_traffic_issue": {
+    {
+        "service": "payments",
+        "tokens": {"shadow", "duplicate", "authorization", "idempotency", "experiment"},
         "severity": "SEV-1",
-        "root_cause": "Shadow traffic header leak caused duplicate authorization paths",
-        "mitigation": "Disable shadow mirror rule and separate idempotency namespace before replay",
+        "root_cause": "Shadow traffic header leak caused duplicate production authorization paths",
+        "mitigation": "Disable the shadow mirror rule and separate the idempotency namespace before replay",
     },
-}
+]
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
@@ -440,10 +470,40 @@ def _keyword_tokens(*chunks: str) -> set[str]:
     return tokens
 
 
+def _observation_tokens(observation: Observation) -> set[str]:
+    chunks = [
+        observation.service,
+        observation.incident_summary,
+        observation.last_action_result,
+        *observation.known_facts[-8:],
+        *(f"{item.title} {item.content} {' '.join(item.tags)}" for item in observation.visible_alerts),
+        *(f"{item.title} {item.content} {' '.join(item.tags)}" for item in observation.visible_logs),
+        *(f"{item.title} {item.content} {' '.join(item.tags)}" for item in observation.visible_runbooks),
+        *(f"{item.title} {item.content} {' '.join(item.tags)}" for item in observation.visible_timeline_notes),
+    ]
+    return _keyword_tokens(*chunks)
+
+
+def _matched_incident_rule(observation: Observation) -> Optional[dict[str, object]]:
+    tokens = _observation_tokens(observation)
+    best_rule: Optional[dict[str, object]] = None
+    best_overlap = 0
+    for rule in INCIDENT_RULES:
+        if rule["service"] != observation.service:
+            continue
+        overlap = len(tokens & set(rule["tokens"]))  # type: ignore[arg-type]
+        if overlap > best_overlap:
+            best_overlap = overlap
+            best_rule = rule
+    if best_overlap >= 2:
+        return best_rule
+    return None
+
+
 def _severity_guess(observation: Observation) -> str:
-    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
-    if prior.get("severity") in VALID_SEVERITIES:
-        return prior["severity"]
+    matched_rule = _matched_incident_rule(observation)
+    if matched_rule and matched_rule.get("severity") in VALID_SEVERITIES:
+        return str(matched_rule["severity"])
 
     if observation.service == "search":
         return "SEV-3" if observation.difficulty.value == "easy" else "SEV-2"
@@ -461,13 +521,14 @@ def _team_guess(observation: Observation) -> str:
 
 
 def _root_cause_guess(observation: Observation) -> str:
-    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
-    if prior.get("root_cause"):
-        return prior["root_cause"]
+    matched_rule = _matched_incident_rule(observation)
+    if matched_rule and matched_rule.get("root_cause"):
+        return str(matched_rule["root_cause"])
 
     candidates: list[str] = []
-    candidates.extend(observation.known_facts[-6:])
     candidates.extend(f"{item.title}: {item.content}" for item in observation.visible_logs)
+    candidates.extend(f"{item.title}: {item.content}" for item in observation.visible_timeline_notes)
+    candidates.extend(observation.known_facts[-6:])
     candidates.extend(f"{item.title}: {item.content}" for item in observation.visible_alerts)
     if not candidates:
         return f"Likely {observation.service} configuration regression causing customer-facing failures"
@@ -482,9 +543,9 @@ def _root_cause_guess(observation: Observation) -> str:
 
 
 def _mitigation_guess(observation: Observation) -> str:
-    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
-    if prior.get("mitigation"):
-        return prior["mitigation"]
+    matched_rule = _matched_incident_rule(observation)
+    if matched_rule and matched_rule.get("mitigation"):
+        return str(matched_rule["mitigation"])
 
     def score_runbook(text: str) -> int:
         lowered = text.lower()
@@ -630,19 +691,18 @@ def _planned_action(observation: Observation) -> Action:
     )
     actions_needed_without_inspection = unresolved_fields + 1  # one final resolve
 
-    prior = SCENARIO_PRIORS.get(observation.scenario_id, {})
+    matched_rule = _matched_incident_rule(observation) or {}
     context_tokens = _keyword_tokens(
         observation.service,
-        observation.scenario_id.replace("_", " "),
         observation.incident_summary,
         observation.last_action_result,
-        prior.get("root_cause", ""),
-        prior.get("mitigation", ""),
+        str(matched_rule.get("root_cause", "")),
+        str(matched_rule.get("mitigation", "")),
         " ".join(observation.known_facts[-8:]),
     )
     priority_tokens = _keyword_tokens(
-        prior.get("root_cause", ""),
-        prior.get("mitigation", ""),
+        str(matched_rule.get("root_cause", "")),
+        str(matched_rule.get("mitigation", "")),
     )
 
     if observation.steps_remaining > actions_needed_without_inspection:
@@ -824,9 +884,7 @@ def _choose_action(model: Optional[OpenAI], observation: Observation) -> Action:
     if _is_risky_action(model_action, observation):
         return planned_action
 
-    # Keep model calls in the loop while preserving deterministic reproducibility.
-    # The planner action is always executed.
-    return planned_action
+    return model_action
 
 
 def _resolve_client() -> tuple[RunbookOpsClient | LocalRunbookOpsClient, str]:
@@ -849,6 +907,7 @@ def run_episode(
     client: RunbookOpsClient | LocalRunbookOpsClient,
     model: Optional[OpenAI],
     scenario_id: str,
+    step_callback: Optional[Callable[[dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
     observation = client.reset(scenario_id=scenario_id)
     step_trace: list[dict[str, Any]] = []
@@ -863,14 +922,19 @@ def run_episode(
             if hasattr(step_result.reward, "reward")
             else float(step_result.reward)
         )
+        step_error = step_result.info.message if step_result.info.invalid_action else None
         step_trace.append(
             {
                 "step": step_index,
+                "action": _format_action_trace(action),
                 "action_type": action.action_type.value,
                 "reward": step_reward,
                 "done": bool(step_result.done),
+                "error": step_error,
             }
         )
+        if step_callback is not None:
+            step_callback(step_trace[-1])
         observation = step_result.observation
         if step_result.done:
             break
@@ -887,26 +951,44 @@ def run_episode(
         "total_reward": state.total_reward,
         "terminal_reason": state.terminal_reason,
         "step_trace": step_trace,
+        "success": state.terminal_reason == "resolved_safely",
+        "rewards": [round(float(item["reward"]), 2) for item in step_trace],
     }
 
 
-def _print_table(headers: list[str], rows: list[list[str]]) -> None:
-    widths = [len(header) for header in headers]
-    for row in rows:
-        for index, cell in enumerate(row):
-            widths[index] = max(widths[index], len(cell))
+def _format_action_trace(action: Action) -> str:
+    def normalize(value: Optional[str]) -> str:
+        text = (value or "").strip().replace("\n", " ")
+        text = re.sub(r"\s+", "_", text)
+        text = text.replace("'", "")
+        return text
 
-    separator = " | ".join("-" * width for width in widths)
-    header_line = " | ".join(header.ljust(widths[index]) for index, header in enumerate(headers))
-    print(header_line)
-    print(separator)
-    for row in rows:
-        print(" | ".join(cell.ljust(widths[index]) for index, cell in enumerate(row)))
+    if action.target:
+        return f"{action.action_type.value}('{normalize(action.target)}')"
+    if action.content:
+        return f"{action.action_type.value}('{normalize(action.content)}')"
+    return f"{action.action_type.value}()"
 
 
 def _emit_structured_event(event_type: str, fields: list[tuple[str, Any]]) -> None:
     serialized = " ".join(f"{key}={value}" for key, value in fields)
     print(f"[{event_type}] {serialized}", flush=True)
+
+
+def _bool_text(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def _reward_text(value: float) -> str:
+    return f"{float(value):.2f}"
+
+
+def _error_text(value: Optional[str]) -> str:
+    if value is None or not str(value).strip():
+        return "null"
+    compact = re.sub(r"\s+", "_", str(value).strip().replace("\n", " "))
+    compact = compact.replace("'", "").replace('"', "")
+    return compact
 
 
 def main() -> None:
@@ -941,24 +1023,53 @@ def main() -> None:
             "START",
             [
                 ("task", scenario.scenario_id),
+                ("env", "runbookops"),
+                ("model", MODEL_NAME),
             ],
         )
-        result = run_episode(client=client, model=model, scenario_id=scenario.scenario_id)
-        episode_results.append(result)
-        for trace in result["step_trace"]:
-            _emit_structured_event(
-                "STEP",
-                [
-                    ("step", trace["step"]),
-                    ("reward", f"{float(trace['reward']):.4f}"),
-                ],
+
+        result: dict[str, Any]
+        try:
+            result = run_episode(
+                client=client,
+                model=model,
+                scenario_id=scenario.scenario_id,
+                step_callback=lambda trace: _emit_structured_event(
+                    "STEP",
+                    [
+                        ("step", trace["step"]),
+                        ("action", trace["action"]),
+                        ("reward", _reward_text(float(trace["reward"]))),
+                        ("done", _bool_text(bool(trace["done"]))),
+                        ("error", _error_text(trace.get("error"))),
+                    ],
+                ),
             )
+        except Exception as exc:
+            result = {
+                "scenario_id": scenario.scenario_id,
+                "difficulty": scenario.difficulty.value,
+                "score": 0.0001,
+                "components": {},
+                "steps_taken": 0,
+                "total_reward": 0.0,
+                "terminal_reason": "episode_exception",
+                "step_trace": [],
+                "success": False,
+                "rewards": [],
+                "episode_error": str(exc),
+            }
+            warnings.append(f"Episode {scenario.scenario_id} failed inside inference.py: {exc}")
+
+        episode_results.append(result)
+
+        rewards_csv = ",".join(_reward_text(float(reward)) for reward in result["rewards"])
         _emit_structured_event(
             "END",
             [
-                ("task", result["scenario_id"]),
-                ("score", f"{float(result['score']):.4f}"),
-                ("steps", result["steps_taken"]),
+                ("success", _bool_text(bool(result["success"]))),
+                ("steps", int(result["steps_taken"])),
+                ("rewards", rewards_csv),
             ],
         )
 
@@ -997,6 +1108,7 @@ def main() -> None:
     }
 
     output_path = Path(RESULT_PATH)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
 
 

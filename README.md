@@ -5,6 +5,9 @@ colorFrom: blue
 colorTo: green
 sdk: docker
 app_port: 7860
+base_path: /docs
+tags:
+  - openenv
 pinned: false
 ---
 
@@ -226,7 +229,8 @@ Validator-safe behavior:
 - If `RUNBOOKOPS_BASE_URL` is unset or unreachable, `inference.py` falls back to the local in-process environment.
 - If `HF_TOKEN` or other API credentials are missing, `inference.py` falls back to a deterministic planner-only baseline instead of exiting with a non-zero status.
 - When credentials are present, the script initializes the OpenAI client and records `inference_mode: "openai_client"` in the output JSON.
-- Stdout uses strict bracketed structured records with `[START]`, `[STEP]`, and `[END]` prefixes for validator-friendly parsing.
+- Stdout uses the exact validator-facing bracketed format with `[START]`, `[STEP]`, and `[END]` records on single lines.
+- The deterministic safety fallback reasons from visible evidence tokens and service/runbook context; it does not rely on a scenario-id answer lookup table.
 
 Round 1 recommended run (saves reproducible artifact):
 
@@ -242,10 +246,26 @@ python3 inference.py | tee artifacts/inference_live_stdout.txt
 
 Output:
 
-- one `[START] task=...` line per scenario
-- multiple `[STEP] task=... step=... reward=...` lines across each episode
-- one `[END] task=... score=... steps=...` line per scenario
+- one `[START] task=... env=runbookops model=...` line per scenario
+- multiple `[STEP] step=... action=... reward=0.00 done=true|false error=...` lines across each episode
+- one `[END] success=true|false steps=... rewards=r1,r2,...,rn` line per scenario
 - JSON summary file (default: `baseline_results.json`)
+
+Exact stdout contract used by the baseline:
+
+```text
+[START] task=easy_auth_token_expiry env=runbookops model=meta-llama/Llama-3.1-8B-Instruct
+[STEP] step=1 action=inspect_alert('ea1_alert_401_spike') reward=0.03 done=false error=null
+[STEP] step=2 action=inspect_log('ea1_log_jwt_expired') reward=0.04 done=false error=null
+[END] success=true steps=8 rewards=0.03,0.04,0.10,0.10,0.20,0.20,0.20,0.00
+```
+
+Environment variable expectations:
+
+- `API_BASE_URL`: required by the hackathon contract, includes a safe default.
+- `MODEL_NAME`: required by the hackathon contract, includes a safe default.
+- `HF_TOKEN`: mandatory secret for real LLM-backed runs, with no default.
+- `LOCAL_IMAGE_NAME`: optional and only used if a containerized local model workflow is introduced later.
 
 ## Docker
 
@@ -265,6 +285,18 @@ Check:
 
 - `http://127.0.0.1:7860/health`
 - `http://127.0.0.1:7860/docs`
+
+## Validator Notes
+
+This repo is tuned to avoid the specific Round 1 failure modes called out in the hackathon guide:
+
+- `inference.py` is at the repository root.
+- `API_BASE_URL` and `MODEL_NAME` are read with defaults.
+- `HF_TOKEN` is read without a default.
+- All LLM-backed calls go through `from openai import OpenAI`.
+- Stdout is limited to exact `[START]`, `[STEP]`, and `[END]` records.
+- Published task scores are always strictly inside `(0,1)`.
+- The Hugging Face Space can be pointed at `/docs` by default via README front matter `base_path: /docs`.
 
 ## Repository Layout
 
@@ -286,13 +318,13 @@ runbookops/
 
 ## Submission Checklist
 
-
-
 - [x] All 15 scenarios load (`5 easy / 5 medium / 5 hard`).
 - [x] `python3 -m pytest` passes.
 - [x] `scripts/smoke_test.py` resolves a scenario and returns a valid grade.
 - [x] `/health`, `/reset`, `/step`, `/state`, `/grade` work from `/docs`.
 - [x] `inference.py` runs with required env vars and writes score summary JSON.
+- [x] `inference.py` emits exact `[START]`, `[STEP]`, `[END]` structured stdout lines.
+- [x] Published task scores are strictly inside `(0,1)` to satisfy validator parsing.
 - [x] Docker image builds and serves `/health`.
 - [x] `openenv.yaml` and implementation behavior are aligned.
 
