@@ -27,6 +27,10 @@ def clamp_open01(value: float, epsilon: float = STRICT_SCORE_EPSILON) -> float:
     return max(epsilon, min(1.0 - epsilon, value))
 
 
+def public_score(value: float) -> float:
+    return round(clamp_open01(clamp01(value)), 4)
+
+
 TOKEN_SYNONYMS: dict[str, str] = {
     "recycle": "restart",
     "redeploy": "restart",
@@ -361,8 +365,8 @@ def grade_episode(scenario: Scenario, state: InternalStateSnapshot) -> GraderRes
     return GraderResult(
         scenario_id=scenario.scenario_id,
         difficulty=scenario.difficulty,
-        score=round(weighted_score, 4),
-        components={key: round(value, 4) for key, value in components.items()},
+        score=public_score(weighted_score),
+        components={key: public_score(value) for key, value in components.items()},
         weights=GRADER_WEIGHTS,
         details=details,
     )
@@ -386,9 +390,9 @@ def aggregate_task_scores(results: Iterable[GraderResult]) -> list[TaskSummary]:
             TaskSummary(
                 difficulty=difficulty,
                 scenario_count=len(scores),
-                average_score=round(mean(scores), 4),
-                min_score=round(min(scores), 4),
-                max_score=round(max(scores), 4),
+                average_score=public_score(mean(scores)),
+                min_score=public_score(min(scores)),
+                max_score=public_score(max(scores)),
             )
         )
 

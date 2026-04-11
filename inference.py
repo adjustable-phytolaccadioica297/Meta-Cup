@@ -15,6 +15,7 @@ from typing import Any, Callable, Optional
 from openai import OpenAI
 
 from client import LocalRunbookOpsClient, RunbookOpsClient
+from grader import public_score
 from models import Action, ActionType, Observation
 
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
@@ -1100,13 +1101,13 @@ def main() -> None:
         "aggregates": {
             difficulty: {
                 "count": len(scores),
-                "min_score": round(min(scores), 4),
-                "mean_score": round(mean(scores), 4),
-                "max_score": round(max(scores), 4),
+                "min_score": public_score(min(scores)),
+                "mean_score": public_score(mean(scores)),
+                "max_score": public_score(max(scores)),
             }
             for difficulty, scores in by_difficulty.items()
         },
-        "overall_mean_score": round(overall, 4),
+        "overall_mean_score": public_score(overall if episode_results else 0.5),
     }
 
     output_path = Path(RESULT_PATH)

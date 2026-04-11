@@ -195,6 +195,34 @@ def test_structured_lines_use_validator_friendly_values() -> None:
     assert re.search(r"rewards=(-?\d+\.\d{2}(,-?\d+\.\d{2})*|)\b", first_end)
 
 
+def test_written_summary_scores_stay_inside_open_interval() -> None:
+    root = Path(__file__).resolve().parents[1]
+    output_path = root / "artifacts" / "test_validator_summary.json"
+    env = os.environ.copy()
+    for key in ("MODEL_NAME", "HF_TOKEN", "API_KEY", "OPENAI_API_KEY", "RUNBOOKOPS_BASE_URL"):
+        env.pop(key, None)
+    env["RESULT_PATH"] = str(output_path)
+
+    subprocess.run(
+        [sys.executable, "inference.py"],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    summary = json.loads(output_path.read_text())
+    assert 0.0 < summary["overall_mean_score"] < 1.0
+    for result in summary["results"]:
+        assert 0.0 < float(result["score"]) < 1.0
+        assert all(0.0 < float(value) < 1.0 for value in result["components"].values())
+    for aggregate in summary["aggregates"].values():
+        assert 0.0 < float(aggregate["min_score"]) < 1.0
+        assert 0.0 < float(aggregate["mean_score"]) < 1.0
+        assert 0.0 < float(aggregate["max_score"]) < 1.0
+
+
 def test_planner_resolves_without_late_duplicate_inspects_on_hard_case() -> None:
     client = LocalRunbookOpsClient()
     observation = client.reset("hard_search_index_pipeline_failure")

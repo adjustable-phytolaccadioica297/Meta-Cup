@@ -36,8 +36,8 @@ def test_alias_matching_for_root_cause_and_mitigation() -> None:
     )
 
     grade = grade_episode(scenario, snapshot)
-    assert grade.components["root_cause"] == 1.0
-    assert grade.components["mitigation"] == 1.0
+    assert 0.99 < grade.components["root_cause"] < 1.0
+    assert 0.99 < grade.components["mitigation"] < 1.0
     assert grade.components["safe_resolution"] > 0.9
 
 
@@ -223,3 +223,32 @@ def test_irrelevant_overinspection_reduces_evidence_score() -> None:
     clean_grade = grade_episode(scenario, required_only)
     noisy_grade = grade_episode(scenario, noisy)
     assert noisy_grade.components["evidence_coverage"] < clean_grade.components["evidence_coverage"]
+
+
+def test_all_public_grade_values_stay_strictly_inside_open_interval() -> None:
+    env = RunbookOpsEnvironment()
+
+    for scenario in env.scenarios:
+        env.reset(scenario_id=scenario.scenario_id)
+        empty_grade = grade_episode(scenario, env.state())
+        assert 0.0 < empty_grade.score < 1.0
+        assert all(0.0 < value < 1.0 for value in empty_grade.components.values())
+
+        solved_snapshot = env.state().model_copy(
+            update={
+                "selected_severity": scenario.true_severity.value,
+                "assigned_team": scenario.true_owner_team.value,
+                "submitted_root_cause": scenario.true_root_cause,
+                "submitted_mitigation": scenario.true_mitigation,
+                "inspected_evidence_ids": scenario.required_evidence_ids,
+                "discovered_relevant_evidence_ids": scenario.required_evidence_ids,
+                "done": True,
+                "steps_taken": min(scenario.max_steps, len(scenario.required_evidence_ids) + 5),
+                "resolution_attempted": True,
+                "premature_resolution": False,
+                "terminal_reason": "resolved_safely",
+            }
+        )
+        solved_grade = grade_episode(scenario, solved_snapshot)
+        assert 0.0 < solved_grade.score < 1.0
+        assert all(0.0 < value < 1.0 for value in solved_grade.components.values())
