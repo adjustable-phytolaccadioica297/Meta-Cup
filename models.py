@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Difficulty(str, Enum):
@@ -195,6 +195,13 @@ class InternalStateSnapshot(BaseModel):
     last_action_result: str
 
 
+SCORE_EPSILON = 0.0051
+
+
+def _clamp_open(v: float) -> float:
+    return max(SCORE_EPSILON, min(1.0 - SCORE_EPSILON, float(v)))
+
+
 class GraderResult(BaseModel):
     scenario_id: str
     difficulty: Difficulty
@@ -203,6 +210,16 @@ class GraderResult(BaseModel):
     weights: dict[str, float]
     details: list[str] = Field(default_factory=list)
 
+    @field_validator("score")
+    @classmethod
+    def _clamp_score(cls, v: float) -> float:
+        return round(_clamp_open(v), 4)
+
+    @field_validator("components")
+    @classmethod
+    def _clamp_components(cls, v: dict[str, float]) -> dict[str, float]:
+        return {k: round(_clamp_open(val), 4) for k, val in v.items()}
+
 
 class TaskSummary(BaseModel):
     difficulty: Difficulty
@@ -210,6 +227,11 @@ class TaskSummary(BaseModel):
     average_score: float
     min_score: float
     max_score: float
+
+    @field_validator("average_score", "min_score", "max_score")
+    @classmethod
+    def _clamp_task_scores(cls, v: float) -> float:
+        return round(_clamp_open(v), 4)
 
 
 class ScenarioSummary(BaseModel):
