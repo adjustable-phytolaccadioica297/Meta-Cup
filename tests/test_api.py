@@ -56,7 +56,7 @@ def test_reset_step_state_grade_flow() -> None:
     grade_response = client.post("/grade")
     assert grade_response.status_code == 200
     grade_payload = grade_response.json()
-    assert 0.0 <= grade_payload["score"] <= 1.0
+    assert 0.0 < grade_payload["score"] < 1.0
 
 
 def test_invalid_action_returns_invalid_flag() -> None:
@@ -99,8 +99,8 @@ def test_score_alias_matches_grade_endpoint() -> None:
 
     assert grade_resp.status_code == 200
     assert score_resp.status_code == 200
-    assert 0.0 <= grade_resp.json()["score"] <= 1.0
-    assert 0.0 <= score_resp.json()["score"] <= 1.0
+    assert 0.0 < grade_resp.json()["score"] < 1.0
+    assert 0.0 < score_resp.json()["score"] < 1.0
 
 
 def test_grade_payload_does_not_expose_boundary_like_decimal_strings() -> None:

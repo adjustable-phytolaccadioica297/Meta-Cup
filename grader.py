@@ -16,7 +16,7 @@ GRADER_WEIGHTS: dict[str, float] = {
     "safe_resolution": 0.05,
 }
 
-STRICT_SCORE_EPSILON = 0.0051
+STRICT_SCORE_EPSILON = 0.01
 
 
 def clamp01(value: float) -> float:

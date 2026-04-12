@@ -195,7 +195,7 @@ class InternalStateSnapshot(BaseModel):
     last_action_result: str
 
 
-SCORE_EPSILON = 0.0051
+SCORE_EPSILON = 0.01
 
 
 def _clamp_open(v: float) -> float:
